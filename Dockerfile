@@ -21,6 +21,9 @@ RUN npm run build
 # Stage 2: Serve the application with nginx
 FROM nginx:alpine
 
+# Install curl for healthcheck
+RUN apk add --no-cache curl
+
 # Copy the build output to nginx html directory
 COPY --from=build /app/build /usr/share/nginx/html
 
