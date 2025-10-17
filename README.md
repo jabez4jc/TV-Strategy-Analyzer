@@ -38,14 +38,42 @@ The TradingView Strategy Analyzer is a powerful web application that processes C
 ### Prerequisites
 - Modern web browser with JavaScript enabled
 - TradingView strategy report in CSV format
+- Node.js (v18 or higher) for local development
+- Git for version control
 
-### Installation & Usage
+### Quick Deployment (Recommended)
 
-1. **Clone or Download**: Download the `tradingview_analyzer_fixed.tsx` file
-2. **Integration**: Integrate into your React application or run as standalone component
-3. **Dependencies**: Ensure you have the following packages installed:
+**Deploy directly to Coolify:**
+1. Fork or clone this repository
+2. Push to your Git provider (GitHub, GitLab, etc.)
+3. In Coolify, create new application from Git repository
+4. Coolify auto-detects Docker configuration and deploys
+5. Access your deployed application via provided URL
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
+
+### Local Development
+
+1. **Clone Repository**:
    ```bash
-   npm install react lucide-react
+   git clone https://github.com/yourusername/tradingview-strategy-analyzer.git
+   cd tradingview-strategy-analyzer
+   ```
+
+2. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
+
+3. **Start Development Server**:
+   ```bash
+   npm start
+   ```
+   Application will open at `http://localhost:3000`
+
+4. **Build for Production**:
+   ```bash
+   npm run build
    ```
 
 ### Using the Application
@@ -64,9 +92,22 @@ The TradingView Strategy Analyzer is a powerful web application that processes C
 
 ```
 TV Strategy Analyzer/
-├── tradingview_analyzer_fixed.tsx    # Main React component (1,330 lines)
-├── README.md                         # This documentation file
-└── .git/                            # Git repository data
+├── public/
+│   ├── index.html                   # HTML entry point with Tailwind CSS
+│   └── manifest.json                # PWA manifest
+├── src/
+│   ├── App.js                       # Main App component
+│   ├── index.js                     # React entry point
+│   ├── index.css                    # Global styles and Tailwind utilities
+│   └── TradingViewStrategyAnalyzer.js # Core analyzer component (1,330 lines)
+├── Dockerfile                       # Multi-stage Docker build configuration
+├── nginx.conf                       # Production web server configuration
+├── package.json                     # Dependencies and build scripts
+├── .dockerignore                    # Docker build exclusions
+├── .gitignore                       # Git exclusions
+├── README.md                        # This documentation file
+├── DEPLOYMENT.md                    # Coolify deployment guide
+└── .git/                           # Git repository data
 ```
 
 ## 📊 CSV File Format Requirements
