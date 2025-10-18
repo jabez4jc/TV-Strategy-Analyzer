@@ -3219,6 +3219,232 @@ TIME SLOT ANALYSIS
                     </div>
                   </div>
 
+                  {/* COMPREHENSIVE ANALYSIS SECTION - MOVED TO TOP */}
+                  {heatmapResults && heatmapResults.data.length > 0 && (
+                    <div style={{ marginBottom: '32px', padding: '20px', borderRadius: '12px', backgroundColor: darkMode ? '#1f2937' : '#f9fafb', border: `2px solid ${darkMode ? '#374151' : '#e5e7eb'}` }}>
+                      <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        📊 Comprehensive Heatmap Analysis & Insights
+                      </h3>
+
+                      {(() => {
+                        let totalPnL = 0;
+                        let totalTrades = 0;
+                        let totalWins = 0;
+                        let totalLosses = 0;
+                        let profitablePeriods = 0;
+                        let maxPnL = -Infinity;
+                        let minPnL = Infinity;
+                        let maxWinRate = 0;
+                        let minWinRate = 100;
+                        const topPeriods = [];
+                        const bottomPeriods = [];
+
+                        heatmapResults.data.forEach(slot => {
+                          totalPnL += slot.pnl;
+                          totalTrades += slot.trades;
+                          const wins = (slot.winrate / 100) * slot.trades;
+                          totalWins += wins;
+                          totalLosses += slot.trades - wins;
+                          if (slot.pnl >= 0) profitablePeriods++;
+                          maxPnL = Math.max(maxPnL, slot.pnl);
+                          minPnL = Math.min(minPnL, slot.pnl);
+                          maxWinRate = Math.max(maxWinRate, slot.winrate);
+                          minWinRate = Math.min(minWinRate, slot.winrate);
+                          topPeriods.push(slot);
+                          bottomPeriods.push(slot);
+                        });
+
+                        topPeriods.sort((a, b) => b.pnl - a.pnl);
+                        bottomPeriods.sort((a, b) => a.pnl - b.pnl);
+
+                        const avgPnL = heatmapResults.data.length > 0 ? totalPnL / heatmapResults.data.length : 0;
+                        const profitablePercentage = heatmapResults.data.length > 0 ? (profitablePeriods / heatmapResults.data.length) * 100 : 0;
+                        const overallWinRate = totalTrades > 0 ? (totalWins / totalTrades) * 100 : 0;
+                        const pnlRange = maxPnL - minPnL;
+                        const profitFactor = totalLosses > 0 ? totalWins / (totalLosses || 1) : totalWins > 0 ? Infinity : 0;
+                        const avgPnLPerTrade = totalTrades > 0 ? totalPnL / totalTrades : 0;
+
+                        return (
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
+                            {/* SECTION 1: Key Performance Metrics */}
+                            <div style={{ padding: '16px', borderRadius: '8px', backgroundColor: darkMode ? '#374151' : '#f0f9ff', border: `1px solid ${darkMode ? '#4b5563' : '#bfdbfe'}` }}>
+                              <p style={{ fontSize: '12px', fontWeight: 'bold', color: darkMode ? '#93c5fd' : '#1e40af', marginBottom: '12px', textTransform: 'uppercase' }}>📈 Overall Performance Metrics</p>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', fontSize: '13px' }}>
+                                <div>
+                                  <p style={{ color: darkMode ? '#9ca3af' : '#666', marginBottom: '4px', fontSize: '11px' }}>Total P&L</p>
+                                  <p style={{ fontSize: '18px', fontWeight: 'bold', color: totalPnL >= 0 ? '#22c55e' : '#ef4444' }}>₹{totalPnL.toLocaleString()}</p>
+                                  <p style={{ fontSize: '10px', color: darkMode ? '#6b7280' : '#999', marginTop: '2px' }}>Across all periods</p>
+                                </div>
+                                <div>
+                                  <p style={{ color: darkMode ? '#9ca3af' : '#666', marginBottom: '4px', fontSize: '11px' }}>Avg P&L per Trade</p>
+                                  <p style={{ fontSize: '18px', fontWeight: 'bold', color: avgPnLPerTrade >= 0 ? '#22c55e' : '#ef4444' }}>₹{avgPnLPerTrade.toLocaleString()}</p>
+                                  <p style={{ fontSize: '10px', color: darkMode ? '#6b7280' : '#999', marginTop: '2px' }}>{totalTrades} trades total</p>
+                                </div>
+                                <div>
+                                  <p style={{ color: darkMode ? '#9ca3af' : '#666', marginBottom: '4px', fontSize: '11px' }}>Win Rate</p>
+                                  <p style={{ fontSize: '18px', fontWeight: 'bold', color: overallWinRate > 50 ? '#22c55e' : overallWinRate > 40 ? '#f59e0b' : '#ef4444' }}>{overallWinRate.toFixed(1)}%</p>
+                                  <p style={{ fontSize: '10px', color: darkMode ? '#6b7280' : '#999', marginTop: '2px' }}>{Math.round(totalWins)} wins, {Math.round(totalLosses)} losses</p>
+                                </div>
+                                <div>
+                                  <p style={{ color: darkMode ? '#9ca3af' : '#666', marginBottom: '4px', fontSize: '11px' }}>Profit Factor</p>
+                                  <p style={{ fontSize: '18px', fontWeight: 'bold', color: profitFactor >= 2 ? '#22c55e' : profitFactor >= 1.5 ? '#f59e0b' : '#ef4444' }}>{profitFactor > 10 ? '∞' : profitFactor.toFixed(2)}</p>
+                                  <p style={{ fontSize: '10px', color: darkMode ? '#6b7280' : '#999', marginTop: '2px' }}>Return per ₹1 loss</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* SECTION 2: Time Slot Performance Distribution */}
+                            <div style={{ padding: '16px', borderRadius: '8px', backgroundColor: darkMode ? '#374151' : '#fef2f2', border: `1px solid ${darkMode ? '#4b5563' : '#fecaca'}` }}>
+                              <p style={{ fontSize: '12px', fontWeight: 'bold', color: darkMode ? '#fca5a5' : '#7f1d1d', marginBottom: '12px', textTransform: 'uppercase' }}>⏰ Time Period Performance</p>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', fontSize: '13px' }}>
+                                <div>
+                                  <p style={{ color: darkMode ? '#9ca3af' : '#666', marginBottom: '4px', fontSize: '11px' }}>Profitable Time Slots</p>
+                                  <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#22c55e' }}>{profitablePeriods}/{heatmapResults.data.length}</p>
+                                  <p style={{ fontSize: '10px', color: darkMode ? '#6b7280' : '#999', marginTop: '2px' }}>{profitablePercentage.toFixed(1)}% success rate</p>
+                                </div>
+                                <div>
+                                  <p style={{ color: darkMode ? '#9ca3af' : '#666', marginBottom: '4px', fontSize: '11px' }}>P&L Range</p>
+                                  <p style={{ fontSize: '14px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>₹{minPnL.toLocaleString()} to ₹{maxPnL.toLocaleString()}</p>
+                                  <p style={{ fontSize: '10px', color: darkMode ? '#6b7280' : '#999', marginTop: '2px' }}>Spread: ₹{pnlRange.toLocaleString()}</p>
+                                </div>
+                                <div>
+                                  <p style={{ color: darkMode ? '#9ca3af' : '#666', marginBottom: '4px', fontSize: '11px' }}>Avg P&L per Slot</p>
+                                  <p style={{ fontSize: '18px', fontWeight: 'bold', color: avgPnL >= 0 ? '#22c55e' : '#ef4444' }}>₹{avgPnL.toLocaleString()}</p>
+                                  <p style={{ fontSize: '10px', color: darkMode ? '#6b7280' : '#999', marginTop: '2px' }}>Based on {heatmapResults.data.length} slots</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* SECTION 3: Best Performing Periods */}
+                            <div style={{ padding: '16px', borderRadius: '8px', backgroundColor: darkMode ? '#1e3a8a' : '#ecf7ff', border: `1px solid ${darkMode ? '#3730a3' : '#a5d8ff'}` }}>
+                              <p style={{ fontSize: '12px', fontWeight: 'bold', color: darkMode ? '#93c5fd' : '#0369a1', marginBottom: '12px', textTransform: 'uppercase' }}>✅ Top 5 Best Performing Periods</p>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px' }}>
+                                {topPeriods.slice(0, 5).map((period, idx) => (
+                                  <div key={`top-${idx}`} style={{ padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#1f2937' : '#f0f9ff', border: `1px solid ${darkMode ? '#374151' : '#bfdbfe'}` }}>
+                                    <p style={{ fontSize: '13px', fontWeight: 'bold', color: '#22c55e', marginBottom: '6px' }}>#{idx + 1} - {period.period}</p>
+                                    <div style={{ fontSize: '12px', color: darkMode ? '#d1d5db' : '#374151', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                      <div>
+                                        <p style={{ color: darkMode ? '#9ca3af' : '#666', fontSize: '10px' }}>P&L</p>
+                                        <p style={{ fontWeight: 'bold', color: '#22c55e', fontSize: '14px' }}>₹{period.pnl.toLocaleString()}</p>
+                                      </div>
+                                      <div>
+                                        <p style={{ color: darkMode ? '#9ca3af' : '#666', fontSize: '10px' }}>Win Rate</p>
+                                        <p style={{ fontWeight: 'bold', color: '#22c55e', fontSize: '14px' }}>{period.winrate.toFixed(1)}%</p>
+                                      </div>
+                                      <div>
+                                        <p style={{ color: darkMode ? '#9ca3af' : '#666', fontSize: '10px' }}>Trades</p>
+                                        <p style={{ fontWeight: 'bold', fontSize: '14px' }}>{period.trades}</p>
+                                      </div>
+                                      <div>
+                                        <p style={{ color: darkMode ? '#9ca3af' : '#666', fontSize: '10px' }}>Contribution</p>
+                                        <p style={{ fontWeight: 'bold', fontSize: '14px' }}>{totalPnL > 0 ? ((period.pnl / totalPnL) * 100).toFixed(1) : '0'}%</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* SECTION 4: Worst Performing Periods */}
+                            <div style={{ padding: '16px', borderRadius: '8px', backgroundColor: darkMode ? '#5e0e0e' : '#fef2f2', border: `1px solid ${darkMode ? '#8c1f1f' : '#fecaca'}` }}>
+                              <p style={{ fontSize: '12px', fontWeight: 'bold', color: darkMode ? '#fca5a5' : '#991b1b', marginBottom: '12px', textTransform: 'uppercase' }}>⚠️ Bottom 5 Worst Performing Periods</p>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px' }}>
+                                {bottomPeriods.slice(0, 5).map((period, idx) => (
+                                  <div key={`bottom-${idx}`} style={{ padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#1f2937' : '#fef2f2', border: `1px solid ${darkMode ? '#374151' : '#fecaca'}` }}>
+                                    <p style={{ fontSize: '13px', fontWeight: 'bold', color: '#ef4444', marginBottom: '6px' }}>#{idx + 1} - {period.period}</p>
+                                    <div style={{ fontSize: '12px', color: darkMode ? '#d1d5db' : '#374151', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                      <div>
+                                        <p style={{ color: darkMode ? '#9ca3af' : '#666', fontSize: '10px' }}>P&L</p>
+                                        <p style={{ fontWeight: 'bold', color: '#ef4444', fontSize: '14px' }}>₹{period.pnl.toLocaleString()}</p>
+                                      </div>
+                                      <div>
+                                        <p style={{ color: darkMode ? '#9ca3af' : '#666', fontSize: '10px' }}>Win Rate</p>
+                                        <p style={{ fontWeight: 'bold', color: '#ef4444', fontSize: '14px' }}>{period.winrate.toFixed(1)}%</p>
+                                      </div>
+                                      <div>
+                                        <p style={{ color: darkMode ? '#9ca3af' : '#666', fontSize: '10px' }}>Trades</p>
+                                        <p style={{ fontWeight: 'bold', fontSize: '14px' }}>{period.trades}</p>
+                                      </div>
+                                      <div>
+                                        <p style={{ color: darkMode ? '#9ca3af' : '#666', fontSize: '10px' }}>Loss Impact</p>
+                                        <p style={{ fontWeight: 'bold', fontSize: '14px' }}>{totalPnL > 0 ? Math.abs((period.pnl / totalPnL) * 100).toFixed(1) : '0'}%</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* SECTION 5: Strategic Recommendations */}
+                            <div style={{ padding: '16px', borderRadius: '8px', backgroundColor: darkMode ? '#2d3748' : '#f3f4f6', border: `1px solid ${darkMode ? '#4a5568' : '#d1d5db'}` }}>
+                              <p style={{ fontSize: '12px', fontWeight: 'bold', color: darkMode ? '#cbd5e1' : '#374151', marginBottom: '12px', textTransform: 'uppercase' }}>💡 Strategic Recommendations</p>
+                              <ul style={{ fontSize: '12px', lineHeight: '1.8', color: darkMode ? '#d1d5db' : '#374151', marginLeft: '0', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                {profitablePercentage > 70 && (
+                                  <li style={{ padding: '10px', backgroundColor: darkMode ? '#1e3a8a' : '#dbeafe', borderRadius: '4px', border: '1px solid #3b82f6' }}>
+                                    <span style={{ fontWeight: 'bold', color: '#0284c7' }}>✅ Concentrate Trading:</span> {profitablePercentage.toFixed(0)}% of your time slots are profitable. Focus 80-90% of trading activity on green zones to maximize returns.
+                                  </li>
+                                )}
+                                {profitablePercentage > 50 && profitablePercentage <= 70 && (
+                                  <li style={{ padding: '10px', backgroundColor: darkMode ? '#78350f' : '#fef3c7', borderRadius: '4px', border: '1px solid #f59e0b' }}>
+                                    <span style={{ fontWeight: 'bold', color: '#d97706' }}>⚠️ Selective Trading:</span> {profitablePercentage.toFixed(0)}% profitability. Increase position sizes only during high-probability periods and reduce during underperforming slots.
+                                  </li>
+                                )}
+                                {profitablePercentage <= 50 && (
+                                  <li style={{ padding: '10px', backgroundColor: darkMode ? '#5e0e0e' : '#fee2e2', borderRadius: '4px', border: '1px solid #ef4444' }}>
+                                    <span style={{ fontWeight: 'bold', color: '#dc2626' }}>🔴 Restrict Strategy:</span> Only {profitablePercentage.toFixed(0)}% of periods are profitable. Restrict all trading to best-performing slots only until strategy improves.
+                                  </li>
+                                )}
+                                <li style={{ padding: '10px', backgroundColor: darkMode ? '#1e3a8a' : '#dbeafe', borderRadius: '4px', border: '1px solid #3b82f6' }}>
+                                  <span style={{ fontWeight: 'bold', color: '#0284c7' }}>📊 Avoid Red Zones:</span> Worst period ({bottomPeriods[0].period}) loses ₹{Math.abs(bottomPeriods[0].pnl).toLocaleString()}. Skip or reduce exposure during this window.
+                                </li>
+                                <li style={{ padding: '10px', backgroundColor: darkMode ? '#1e3a8a' : '#dbeafe', borderRadius: '4px', border: '1px solid #3b82f6' }}>
+                                  <span style={{ fontWeight: 'bold', color: '#0284c7' }}>🎯 Optimize Focus:</span> P&L variance (₹{pnlRange.toLocaleString()}) indicates concentrated profits. Identify common factors (volatility, liquidity, news timing) in green periods.
+                                </li>
+                                <li style={{ padding: '10px', backgroundColor: darkMode ? '#1e3a8a' : '#dbeafe', borderRadius: '4px', border: '1px solid #3b82f6' }}>
+                                  <span style={{ fontWeight: 'bold', color: '#0284c7' }}>⏱️ Time Discipline:</span> Top period generates {((topPeriods[0].pnl / totalPnL) * 100).toFixed(1)}% of profits. Set trading hours to align with this window for maximum ROI.
+                                </li>
+                                <li style={{ padding: '10px', backgroundColor: darkMode ? '#1e3a8a' : '#dbeafe', borderRadius: '4px', border: '1px solid #3b82f6' }}>
+                                  <span style={{ fontWeight: 'bold', color: '#0284c7' }}>📈 Monitor Performance:</span> Track pattern stability weekly. If win rate drops below {(overallWinRate * 0.8).toFixed(1)}%, review for market condition changes or strategy drift.
+                                </li>
+                              </ul>
+                            </div>
+
+                            {/* SECTION 6: Key Metrics Summary Table */}
+                            <div style={{ padding: '16px', borderRadius: '8px', backgroundColor: darkMode ? '#374151' : '#f9fafb', border: `1px solid ${darkMode ? '#4b5563' : '#e5e7eb'}` }}>
+                              <p style={{ fontSize: '12px', fontWeight: 'bold', color: darkMode ? '#9ca3af' : '#374151', marginBottom: '12px', textTransform: 'uppercase' }}>📋 Detailed Metrics Summary</p>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', fontSize: '12px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px', backgroundColor: darkMode ? '#1f2937' : '#f3f4f6', borderRadius: '4px' }}>
+                                  <span style={{ color: darkMode ? '#9ca3af' : '#666' }}>Unique Time Periods</span>
+                                  <span style={{ fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{heatmapResults.data.length}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px', backgroundColor: darkMode ? '#1f2937' : '#f3f4f6', borderRadius: '4px' }}>
+                                  <span style={{ color: darkMode ? '#9ca3af' : '#666' }}>Total Trades</span>
+                                  <span style={{ fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{totalTrades}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px', backgroundColor: darkMode ? '#1f2937' : '#f3f4f6', borderRadius: '4px' }}>
+                                  <span style={{ color: darkMode ? '#9ca3af' : '#666' }}>Win/Loss Ratio</span>
+                                  <span style={{ fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{Math.round(totalWins)}W / {Math.round(totalLosses)}L</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px', backgroundColor: darkMode ? '#1f2937' : '#f3f4f6', borderRadius: '4px' }}>
+                                  <span style={{ color: darkMode ? '#9ca3af' : '#666' }}>Best Period Contribution</span>
+                                  <span style={{ fontWeight: 'bold', color: '#22c55e' }}>{((topPeriods[0].pnl / totalPnL) * 100).toFixed(1)}% of total P&L</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px', backgroundColor: darkMode ? '#1f2937' : '#f3f4f6', borderRadius: '4px' }}>
+                                  <span style={{ color: darkMode ? '#9ca3af' : '#666' }}>Worst Period Loss Impact</span>
+                                  <span style={{ fontWeight: 'bold', color: '#ef4444' }}>{Math.abs((bottomPeriods[0].pnl / totalPnL) * 100).toFixed(1)}% of total P&L</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px', backgroundColor: darkMode ? '#1f2937' : '#f3f4f6', borderRadius: '4px' }}>
+                                  <span style={{ color: darkMode ? '#9ca3af' : '#666' }}>Win Rate Range</span>
+                                  <span style={{ fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{minWinRate.toFixed(1)}% - {maxWinRate.toFixed(1)}%</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
                   {/* Heatmap Grid */}
                   {heatmapResults && heatmapResults.data.length > 0 ? (
                     <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
@@ -3377,124 +3603,6 @@ TIME SLOT ANALYSIS
                         </div>
                       </div>
 
-                      {/* Detailed Heatmap Analysis Summary */}
-                      <div style={{ marginTop: '24px', padding: '20px', borderRadius: '8px', backgroundColor: darkMode ? '#1f2937' : '#f9fafb', border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}` }}>
-                        <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937', marginBottom: '16px' }}>📊 Detailed Heatmap Analysis</h3>
-
-                        {(() => {
-                          const stats = {};
-                          let totalPnL = 0;
-                          let totalTrades = 0;
-                          let profitablePeriods = 0;
-                          let totalWins = 0;
-                          let maxPnL = -Infinity;
-                          let minPnL = Infinity;
-
-                          heatmapResults.data.forEach(slot => {
-                            totalPnL += slot.pnl;
-                            totalTrades += slot.trades;
-                            if (slot.pnl >= 0) profitablePeriods++;
-                            totalWins += (slot.winrate / 100) * slot.trades;
-                            maxPnL = Math.max(maxPnL, slot.pnl);
-                            minPnL = Math.min(minPnL, slot.pnl);
-                          });
-
-                          const avgPnL = heatmapResults.data.length > 0 ? totalPnL / heatmapResults.data.length : 0;
-                          const profitablePercentage = heatmapResults.data.length > 0 ? (profitablePeriods / heatmapResults.data.length) * 100 : 0;
-                          const overallWinRate = totalTrades > 0 ? (totalWins / totalTrades) * 100 : 0;
-                          const pnlRange = maxPnL - minPnL;
-
-                          return (
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
-                              {/* Key Statistics */}
-                              <div style={{ padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#374151' : '#f0f9ff' }}>
-                                <p style={{ fontSize: '11px', fontWeight: 'bold', color: darkMode ? '#9ca3af' : '#1e40af', marginBottom: '8px' }}>KEY STATISTICS</p>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' }}>
-                                  <div>
-                                    <p style={{ color: darkMode ? '#9ca3af' : '#666' }}>Total P&L</p>
-                                    <p style={{ fontSize: '16px', fontWeight: 'bold', color: totalPnL >= 0 ? '#22c55e' : '#ef4444' }}>₹{totalPnL.toLocaleString()}</p>
-                                  </div>
-                                  <div>
-                                    <p style={{ color: darkMode ? '#9ca3af' : '#666' }}>Avg per Slot</p>
-                                    <p style={{ fontSize: '16px', fontWeight: 'bold', color: avgPnL >= 0 ? '#22c55e' : '#ef4444' }}>₹{avgPnL.toLocaleString()}</p>
-                                  </div>
-                                  <div>
-                                    <p style={{ color: darkMode ? '#9ca3af' : '#666' }}>Total Trades</p>
-                                    <p style={{ fontSize: '16px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{totalTrades}</p>
-                                  </div>
-                                  <div>
-                                    <p style={{ color: darkMode ? '#9ca3af' : '#666' }}>Overall Win Rate</p>
-                                    <p style={{ fontSize: '16px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{overallWinRate.toFixed(1)}%</p>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Performance Breakdown */}
-                              <div style={{ padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#374151' : '#fef2f2' }}>
-                                <p style={{ fontSize: '11px', fontWeight: 'bold', color: darkMode ? '#9ca3af' : '#7f1d1d', marginBottom: '8px' }}>PERFORMANCE BREAKDOWN</p>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' }}>
-                                  <div>
-                                    <p style={{ color: darkMode ? '#9ca3af' : '#666' }}>Profitable Periods</p>
-                                    <p style={{ fontSize: '16px', fontWeight: 'bold', color: '#22c55e' }}>{profitablePeriods}/{heatmapResults.data.length} ({profitablePercentage.toFixed(1)}%)</p>
-                                  </div>
-                                  <div>
-                                    <p style={{ color: darkMode ? '#9ca3af' : '#666' }}>P&L Range</p>
-                                    <p style={{ fontSize: '14px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>₹{minPnL.toLocaleString()} → ₹{maxPnL.toLocaleString()}</p>
-                                  </div>
-                                  <div>
-                                    <p style={{ color: darkMode ? '#9ca3af' : '#666' }}>Best Time Slot</p>
-                                    <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#22c55e' }}>{heatmapResults.data.reduce((max, curr) => curr.pnl > max.pnl ? curr : max).period}</p>
-                                  </div>
-                                  <div>
-                                    <p style={{ color: darkMode ? '#9ca3af' : '#666' }}>Worst Time Slot</p>
-                                    <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#ef4444' }}>{heatmapResults.data.reduce((min, curr) => curr.pnl < min.pnl ? curr : min).period}</p>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Trading Recommendations */}
-                              <div style={{ gridColumn: '1 / -1', padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#374151' : '#f0fdf4' }}>
-                                <p style={{ fontSize: '11px', fontWeight: 'bold', color: darkMode ? '#9ca3af' : '#166534', marginBottom: '8px' }}>💡 KEY INSIGHTS & RECOMMENDATIONS</p>
-                                <div style={{ fontSize: '12px', lineHeight: '1.6', color: darkMode ? '#e5e7eb' : '#1f2937', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                                  {profitablePercentage > 70 ? (
-                                    <div>
-                                      <p style={{ fontWeight: 'bold', color: '#22c55e', marginBottom: '4px' }}>✅ Excellent Time Selection</p>
-                                      <p>Your trading is concentrated in highly profitable periods ({profitablePercentage.toFixed(0)}% positive). Maintain this discipline and continue trading during identified green zones.</p>
-                                    </div>
-                                  ) : profitablePercentage > 50 ? (
-                                    <div>
-                                      <p style={{ fontWeight: 'bold', color: '#f59e0b', marginBottom: '4px' }}>⚠️ Mixed Performance</p>
-                                      <p>About half your time slots are profitable ({profitablePercentage.toFixed(0)}%). Focus on high-probability periods and reduce activity in underperforming slots.</p>
-                                    </div>
-                                  ) : (
-                                    <div>
-                                      <p style={{ fontWeight: 'bold', color: '#ef4444', marginBottom: '4px' }}>🔴 Review Strategy</p>
-                                      <p>Less than half your periods are profitable ({profitablePercentage.toFixed(0)}%). Consider restricting trading to only the best-performing time slots.</p>
-                                    </div>
-                                  )}
-
-                                  <div>
-                                    <p style={{ fontWeight: 'bold', color: '#3b82f6', marginBottom: '4px' }}>📈 Optimization Opportunity</p>
-                                    <p>P&L varies from ₹{minPnL.toLocaleString()} to ₹{maxPnL.toLocaleString()} across periods. A ₹{pnlRange.toLocaleString()} range suggests significant potential to concentrate activity in higher-performing slots.</p>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Action Items */}
-                              <div style={{ gridColumn: '1 / -1', padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#1e3a8a' : '#eff6ff' }}>
-                                <p style={{ fontSize: '11px', fontWeight: 'bold', color: darkMode ? '#93c5fd' : '#1e40af', marginBottom: '8px' }}>✅ ACTION ITEMS</p>
-                                <ul style={{ fontSize: '12px', lineHeight: '1.8', color: darkMode ? '#e5e7eb' : '#1f2937', marginLeft: '16px' }}>
-                                  <li>Trade more aggressively during {heatmapResults.data.reduce((max, curr) => curr.pnl > max.pnl ? curr : max).period} (your best performing period)</li>
-                                  <li>Reduce position sizes or skip trading during {heatmapResults.data.reduce((min, curr) => curr.pnl < min.pnl ? curr : min).period}</li>
-                                  <li>Use {heatmapResolution}-minute resolution to identify micro-patterns within your preferred time blocks</li>
-                                  <li>Monitor consistency: Track if performance patterns remain stable over time</li>
-                                  <li>Consider market conditions: Analyze if performance changes during different market cycles or volatility periods</li>
-                                </ul>
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </div>
                     </div>
                   ) : (
                     <div className={`${cardBg} rounded-lg p-8 text-center border ${borderColor}`}>
