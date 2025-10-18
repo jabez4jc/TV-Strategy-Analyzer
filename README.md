@@ -15,12 +15,17 @@ The TradingView Strategy Analyzer is a powerful web application that processes C
   - **Exit Time Analysis**: Find the best times to close positions
   - **Entry→Exit Combo Analysis**: Discover profitable entry-to-exit time combinations
 - **Performance Metrics**: Comprehensive metrics including P&L, win rate, profit factor, and average trade duration
+- **Interactive Data Visualization**: Rich charts and graphs for visual analysis
 
-### 📈 Advanced Insights
+### 📈 Advanced Insights & Visualizations
+- **Equity Curve Analysis**: Track portfolio performance progression over time with interactive line charts
+- **Day of Week Performance**: Identify optimal trading days with visual bar charts
+- **Temporal Analysis**: Comprehensive time-based performance breakdowns
 - **Consistency Analysis**: Weekly and monthly performance breakdowns for each time slot
-- **Risk Metrics**: Maximum drawdown, consecutive wins/losses tracking
+- **Risk Metrics**: Maximum drawdown, consecutive wins/losses tracking with visual indicators
 - **Comprehensive Statistics**: Best/worst performing weeks and months
 - **Trade Duration Analysis**: Average and median trade holding periods
+- **Interactive Charts**: Powered by Recharts library for responsive, interactive data visualization
 
 ### 🎛️ Customizable Options
 - **Flexible Time Intervals**: 5, 15, 30, or 60-minute analysis windows
@@ -28,10 +33,12 @@ The TradingView Strategy Analyzer is a powerful web application that processes C
 - **Intraday Filter**: Option to analyze only same-day trades
 - **Multiple Sorting**: Sort by profitability, win rate, or profit factor
 
-### 📋 Data Export
-- **PDF Reports**: Generate comprehensive strategy analysis reports
+### 📋 Data Export & Visualization
+- **Interactive Charts**: LineCharts, BarCharts, ScatterCharts for visual analysis
+- **PDF Reports**: Generate comprehensive strategy analysis reports with visual elements
 - **CSV Export**: Export filtered results for further analysis
-- **Detailed Breakdown**: Include weekly/monthly performance data
+- **Chart Export**: Save visualizations and insights
+- **Detailed Breakdown**: Include weekly/monthly performance data with visual trends
 
 ## 🚀 Getting Started
 
@@ -183,6 +190,7 @@ Trade #,Type,Date/Time,Net P&L INR
 
 ### Core Technologies
 - **React**: Component-based UI framework
+- **Recharts**: Interactive data visualization library for charts and graphs
 - **Lucide React**: Modern icon library
 - **CSS-in-JS**: Tailwind-style inline styling
 - **JavaScript ES6+**: Modern JavaScript features
@@ -218,18 +226,30 @@ For issues or feature requests:
 3. Verify that your CSV contains both entry and exit trades
 4. Make sure trade numbers match between entry and exit records
 
+## 🎉 Recent Updates (v2.0)
+
+### New in Version 2.0:
+- ✅ **Interactive Charts**: Added comprehensive data visualization with Recharts
+- ✅ **Equity Curve Analysis**: Track portfolio performance over time
+- ✅ **Day of Week Analysis**: Visual analysis of trading performance by weekday
+- ✅ **Enhanced Visualizations**: LineCharts, BarCharts, ScatterCharts
+- ✅ **Improved Data Processing**: More robust analysis capabilities
+- ✅ **Rich Visual Insights**: Interactive charts for all analysis types
+
 ## 🔮 Future Enhancements
 
 Potential improvements that could be added:
-- **Interactive Charts**: Visual representation of performance over time
 - **Strategy Comparison**: Compare multiple strategy reports side-by-side
+- **Advanced Chart Types**: Candlestick charts, heatmaps, correlation matrices
 - **Advanced Filters**: Filter by date ranges, trade sizes, or other criteria
 - **Automated Reporting**: Schedule regular analysis reports
 - **API Integration**: Direct connection to TradingView or broker APIs
 - **Machine Learning**: Predictive analysis of optimal trading times
+- **Real-time Data**: Live trading performance monitoring
 
 ---
 
 **Last Updated**: October 2024  
-**Version**: 1.0  
-**File Size**: ~66KB (1,330 lines of code)
+**Version**: 2.0 with Interactive Charts and Enhanced Analysis  
+**File Size**: ~160KB (1,769 lines of code)  
+**New Dependencies**: Recharts for data visualization

@@ -151,8 +151,13 @@ TV Strategy Analyzer/
 4. **Cross-browser test**: Check major browser compatibility
 
 ### Phase 5: Documentation
-1. **Update README.md**: If major features added
-2. **Update feature lists**: Document new capabilities
+1. **ALWAYS Update README.md**: Update the README.md to reflect the updates to the app every time any enhancement is added
+   - Update feature descriptions
+   - Add new capabilities to the overview
+   - Update technical implementation section with new dependencies
+   - Add to "Recent Updates" section with version information
+   - Update file size and line counts
+2. **Update feature lists**: Document new capabilities in detail
 3. **Update deployment guide**: If build process changes
 
 ## 🚨 Common Issues & Solutions
