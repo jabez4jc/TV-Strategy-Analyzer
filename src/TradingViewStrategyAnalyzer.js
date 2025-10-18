@@ -46,6 +46,18 @@ const ModernTradingAnalyzer = () => {
   const [optimizationMode, setOptimizationMode] = useState('manual'); // manual or auto
   const [isOptimizing, setIsOptimizing] = useState(false);
 
+  // Trade Clustering & Correlation State (Phase 2)
+  const [clusteringResults, setClusteringResults] = useState(null);
+  const [clusteringType, setClusteringType] = useState('outcome'); // outcome, entryPattern, symbol, timeOfDay
+  const [selectedCluster, setSelectedCluster] = useState(null);
+  const [correlationMetric, setCorrelationMetric] = useState('pnl'); // pnl, winrate, duration
+
+  // Weakness Detection State (Phase 5)
+  const [weaknessResults, setWeaknessResults] = useState(null);
+  const [weaknessMetric, setWeaknessMetric] = useState('pnl'); // pnl, winrate, drawdown
+  const [weaknessThreshold, setWeaknessThreshold] = useState(30); // percentage below average
+  const [selectedWeakness, setSelectedWeakness] = useState(null);
+
   const addToast = (message, type = 'info') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
@@ -1222,6 +1234,206 @@ const ModernTradingAnalyzer = () => {
     }
   }, [cachedData, stopLossPercent, takeProfitPercent, optimizationMode]);
 
+  // Trade Clustering & Correlation Analysis (Phase 2)
+  const performTradeClusteringAnalysis = useCallback(() => {
+    if (!cachedData || !cachedData.completeTrades) return;
+
+    const trades = cachedData.completeTrades;
+    const clusters = {};
+    let clusterMetrics = {};
+
+    if (clusteringType === 'outcome') {
+      // Cluster by winning vs losing trades
+      const winners = trades.filter(t => (parseFloat(t.pnl) || 0) > 0);
+      const losers = trades.filter(t => (parseFloat(t.pnl) || 0) <= 0);
+
+      clusters['Winners'] = winners;
+      clusters['Losers'] = losers;
+
+      // Calculate metrics for each cluster
+      ['Winners', 'Losers'].forEach(clusterName => {
+        const clusterTrades = clusters[clusterName];
+        const totalPnL = clusterTrades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0);
+        const avgPnL = totalPnL / clusterTrades.length;
+        const avgDuration = clusterTrades.length > 0 ?
+          clusterTrades.reduce((sum, t) => {
+            try {
+              const entry = new Date(t.entryTime);
+              const exit = new Date(t.exitTime);
+              return sum + (exit - entry);
+            } catch {
+              return sum;
+            }
+          }, 0) / clusterTrades.length / 60000 : 0; // convert to minutes
+
+        clusterMetrics[clusterName] = {
+          count: clusterTrades.length,
+          totalPnL: Math.round(totalPnL),
+          avgPnL: Math.round(avgPnL),
+          percentage: ((clusterTrades.length / trades.length) * 100).toFixed(1),
+          avgDuration: avgDuration.toFixed(2),
+          pnlRange: {
+            min: Math.min(...clusterTrades.map(t => parseFloat(t.pnl) || 0)),
+            max: Math.max(...clusterTrades.map(t => parseFloat(t.pnl) || 0))
+          }
+        };
+      });
+    } else if (clusteringType === 'entryPattern') {
+      // Cluster by entry time patterns (morning, afternoon, evening)
+      const morning = trades.filter(t => {
+        try {
+          const hour = new Date(t.entryTime).getHours();
+          return hour >= 6 && hour < 12;
+        } catch { return false; }
+      });
+      const afternoon = trades.filter(t => {
+        try {
+          const hour = new Date(t.entryTime).getHours();
+          return hour >= 12 && hour < 18;
+        } catch { return false; }
+      });
+      const evening = trades.filter(t => {
+        try {
+          const hour = new Date(t.entryTime).getHours();
+          return hour >= 18 || hour < 6;
+        } catch { return false; }
+      });
+
+      clusters['Morning (6AM-12PM)'] = morning;
+      clusters['Afternoon (12PM-6PM)'] = afternoon;
+      clusters['Evening (6PM-6AM)'] = evening;
+
+      Object.keys(clusters).forEach(clusterName => {
+        const clusterTrades = clusters[clusterName];
+        if (clusterTrades.length === 0) return;
+
+        const totalPnL = clusterTrades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0);
+        const wins = clusterTrades.filter(t => (parseFloat(t.pnl) || 0) > 0).length;
+
+        clusterMetrics[clusterName] = {
+          count: clusterTrades.length,
+          totalPnL: Math.round(totalPnL),
+          avgPnL: Math.round(totalPnL / clusterTrades.length),
+          winRate: ((wins / clusterTrades.length) * 100).toFixed(1),
+          percentage: ((clusterTrades.length / trades.length) * 100).toFixed(1),
+          bestTrade: Math.max(...clusterTrades.map(t => parseFloat(t.pnl) || 0)),
+          worstTrade: Math.min(...clusterTrades.map(t => parseFloat(t.pnl) || 0))
+        };
+      });
+    }
+
+    // Build correlation data for visualization
+    const correlationData = Object.entries(clusterMetrics).map(([name, metrics]) => ({
+      name,
+      ...metrics
+    }));
+
+    setClusteringResults({
+      clusters,
+      clusterMetrics,
+      correlationData,
+      type: clusteringType,
+      totalTrades: trades.length
+    });
+
+    addToast(`Trade clustering complete: ${Object.keys(clusters).length} clusters identified`, 'success');
+  }, [cachedData, clusteringType]);
+
+  // Weakness Detection Analysis (Phase 5)
+  const performWeaknessDetection = useCallback(() => {
+    if (!cachedData || !cachedData.completeTrades) return;
+
+    const trades = cachedData.completeTrades;
+    const weaknesses = [];
+    const averageMetrics = {};
+
+    // Calculate average P&L
+    const totalPnL = trades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0);
+    const avgPnL = totalPnL / trades.length;
+    const avgWinRate = (trades.filter(t => (parseFloat(t.pnl) || 0) > 0).length / trades.length) * 100;
+
+    // Analyze time-based weaknesses
+    const hourlyMetrics = {};
+    trades.forEach(trade => {
+      try {
+        const hour = new Date(trade.entryTime).getHours();
+        if (!hourlyMetrics[hour]) {
+          hourlyMetrics[hour] = { trades: [], pnl: 0, wins: 0 };
+        }
+        hourlyMetrics[hour].trades.push(trade);
+        hourlyMetrics[hour].pnl += parseFloat(trade.pnl) || 0;
+        if ((parseFloat(trade.pnl) || 0) > 0) hourlyMetrics[hour].wins++;
+      } catch { }
+    });
+
+    Object.entries(hourlyMetrics).forEach(([hour, data]) => {
+      const hourAvgPnL = data.pnl / data.trades.length;
+      const hourWinRate = (data.wins / data.trades.length) * 100;
+      const pnlDeviation = ((avgPnL - hourAvgPnL) / Math.abs(avgPnL || 1)) * 100;
+
+      if (pnlDeviation > weaknessThreshold) {
+        weaknesses.push({
+          type: 'Time Weakness',
+          period: `${hour}:00 - ${(hour + 1) % 24}:00`,
+          description: `Hour ${hour} underperforms by ${pnlDeviation.toFixed(1)}%`,
+          avgPnL: Math.round(hourAvgPnL),
+          winRate: hourWinRate.toFixed(1),
+          expectedPnL: Math.round(avgPnL),
+          lossAmount: Math.round(avgPnL - hourAvgPnL),
+          tradeCount: data.trades.length,
+          severity: pnlDeviation > 70 ? 'Critical' : pnlDeviation > 50 ? 'High' : 'Medium'
+        });
+      }
+    });
+
+    // Analyze direction-based weaknesses (long vs short if available)
+    const directions = {};
+    trades.forEach(trade => {
+      const direction = trade.position?.toLowerCase() === 'short' ? 'Short' : 'Long';
+      if (!directions[direction]) {
+        directions[direction] = { trades: [], pnl: 0, wins: 0 };
+      }
+      directions[direction].trades.push(trade);
+      directions[direction].pnl += parseFloat(trade.pnl) || 0;
+      if ((parseFloat(trade.pnl) || 0) > 0) directions[direction].wins++;
+    });
+
+    Object.entries(directions).forEach(([dir, data]) => {
+      if (data.trades.length < trades.length * 0.1) return; // Skip if less than 10% of trades
+
+      const dirAvgPnL = data.pnl / data.trades.length;
+      const dirWinRate = (data.wins / data.trades.length) * 100;
+      const pnlDeviation = ((avgPnL - dirAvgPnL) / Math.abs(avgPnL || 1)) * 100;
+
+      if (pnlDeviation > weaknessThreshold) {
+        weaknesses.push({
+          type: 'Direction Weakness',
+          period: `${dir} Positions`,
+          description: `${dir} trades underperform by ${pnlDeviation.toFixed(1)}%`,
+          avgPnL: Math.round(dirAvgPnL),
+          winRate: dirWinRate.toFixed(1),
+          expectedPnL: Math.round(avgPnL),
+          lossAmount: Math.round(avgPnL - dirAvgPnL),
+          tradeCount: data.trades.length,
+          severity: pnlDeviation > 70 ? 'Critical' : pnlDeviation > 50 ? 'High' : 'Medium'
+        });
+      }
+    });
+
+    // Sort by severity
+    const severityOrder = { Critical: 0, High: 1, Medium: 2 };
+    weaknesses.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+
+    setWeaknessResults({
+      weaknesses,
+      totalWeaknesses: weaknesses.length,
+      averageMetrics: { avgPnL: Math.round(avgPnL), avgWinRate: avgWinRate.toFixed(1) },
+      threshold: weaknessThreshold
+    });
+
+    addToast(`Weakness detection complete: ${weaknesses.length} weaknesses identified`, 'success');
+  }, [cachedData, weaknessThreshold]);
+
   const handleFileUpload = useCallback(async (event) => {
     const uploadedFile = event.target.files[0];
     if (!uploadedFile) return;
@@ -1553,6 +1765,8 @@ TIME SLOT ANALYSIS
     { id: 'segmentation', label: 'Segmentation', icon: Activity },
     { id: 'heatmap', label: 'Enhanced Heatmap', icon: Activity },
     { id: 'optimization', label: 'Exit Optimization', icon: Target },
+    { id: 'clustering', label: 'Trade Clustering', icon: Activity },
+    { id: 'weakness', label: 'Weakness Detection', icon: AlertCircle },
   ];
 
   return (
@@ -3792,6 +4006,235 @@ TIME SLOT ANALYSIS
                 <div className={`${cardBg} rounded-2xl p-12 text-center border ${borderColor}`}>
                   <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     Upload and analyze a strategy to use optimization features
+                  </p>
+                </div>
+              )}
+
+              {/* Trade Clustering Tab (Phase 2) */}
+              {activeTab === 'clustering' && results && (
+                <div className="space-y-6">
+                  {/* Controls */}
+                  <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                    <h3 className={`text-lg font-bold ${textColor} mb-4`}>Trade Clustering Analysis</h3>
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <p className={`text-sm font-medium ${textColor} mb-3`}>Clustering Type</p>
+                        <select
+                          value={clusteringType}
+                          onChange={(e) => setClusteringType(e.target.value)}
+                          className={`w-full px-3 py-2 rounded-lg border ${borderColor} ${darkMode ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'}`}
+                        >
+                          <option value="outcome">Outcome (Winners vs Losers)</option>
+                          <option value="entryPattern">Entry Pattern (Time of Day)</option>
+                        </select>
+                      </div>
+                      <div className="flex items-end gap-3">
+                        <button
+                          onClick={performTradeClusteringAnalysis}
+                          className="flex-1 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                        >
+                          Analyze Clusters
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Clustering Results */}
+                  {clusteringResults && (
+                    <div className="space-y-6">
+                      <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                        <h3 className={`text-lg font-bold ${textColor} mb-4`}>📊 Cluster Analysis Summary</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          {clusteringResults.correlationData.map((cluster, idx) => (
+                            <div key={idx} style={{ padding: '16px', borderRadius: '8px', backgroundColor: darkMode ? '#374151' : '#f0f9ff', border: `1px solid ${darkMode ? '#4b5563' : '#bfdbfe'}` }}>
+                              <p style={{ fontSize: '13px', fontWeight: 'bold', color: darkMode ? '#93c5fd' : '#1e40af', marginBottom: '12px' }}>{cluster.name}</p>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '12px' }}>
+                                <div>
+                                  <p style={{ color: darkMode ? '#9ca3af' : '#666', marginBottom: '4px' }}>Trade Count</p>
+                                  <p style={{ fontSize: '16px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{cluster.count}</p>
+                                </div>
+                                <div>
+                                  <p style={{ color: darkMode ? '#9ca3af' : '#666', marginBottom: '4px' }}>Total P&L</p>
+                                  <p style={{ fontSize: '16px', fontWeight: 'bold', color: cluster.totalPnL >= 0 ? '#22c55e' : '#ef4444' }}>₹{cluster.totalPnL.toLocaleString()}</p>
+                                </div>
+                                <div>
+                                  <p style={{ color: darkMode ? '#9ca3af' : '#666', marginBottom: '4px' }}>Avg P&L</p>
+                                  <p style={{ fontSize: '16px', fontWeight: 'bold', color: cluster.avgPnL >= 0 ? '#22c55e' : '#ef4444' }}>₹{cluster.avgPnL.toLocaleString()}</p>
+                                </div>
+                                <div>
+                                  <p style={{ color: darkMode ? '#9ca3af' : '#666', marginBottom: '4px' }}>Percentage</p>
+                                  <p style={{ fontSize: '16px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{cluster.percentage}%</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Cluster Comparison Chart */}
+                      <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                        <h3 className={`text-lg font-bold ${textColor} mb-4`}>Cluster Performance Comparison</h3>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <BarChart data={clusteringResults.correlationData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#374151' : '#e5e7eb'} />
+                            <XAxis dataKey="name" stroke={darkMode ? '#9ca3af' : '#6b7280'} />
+                            <YAxis stroke={darkMode ? '#9ca3af' : '#6b7280'} />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: darkMode ? '#1f2937' : '#ffffff',
+                                border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`,
+                                borderRadius: '8px'
+                              }}
+                            />
+                            <Bar dataKey="totalPnL" fill="#3b82f6" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!results && activeTab === 'clustering' && (
+                <div className={`${cardBg} rounded-2xl p-12 text-center border ${borderColor}`}>
+                  <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Upload and analyze a strategy to use clustering features
+                  </p>
+                </div>
+              )}
+
+              {/* Weakness Detection Tab (Phase 5) */}
+              {activeTab === 'weakness' && results && (
+                <div className="space-y-6">
+                  {/* Controls */}
+                  <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                    <h3 className={`text-lg font-bold ${textColor} mb-4`}>Weakness Detection</h3>
+                    <div className="grid grid-cols-3 gap-6">
+                      <div>
+                        <p className={`text-sm font-medium ${textColor} mb-3`}>Detection Metric</p>
+                        <select
+                          value={weaknessMetric}
+                          onChange={(e) => setWeaknessMetric(e.target.value)}
+                          className={`w-full px-3 py-2 rounded-lg border ${borderColor} ${darkMode ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'}`}
+                        >
+                          <option value="pnl">P&L Performance</option>
+                          <option value="winrate">Win Rate</option>
+                          <option value="drawdown">Drawdown</option>
+                        </select>
+                      </div>
+                      <div>
+                        <p className={`text-sm font-medium ${textColor} mb-3`}>Weakness Threshold: {weaknessThreshold}%</p>
+                        <input
+                          type="range"
+                          min="10"
+                          max="80"
+                          step="5"
+                          value={weaknessThreshold}
+                          onChange={(e) => setWeaknessThreshold(parseInt(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+                      <div className="flex items-end gap-3">
+                        <button
+                          onClick={performWeaknessDetection}
+                          className="flex-1 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+                        >
+                          Detect Weaknesses
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Weakness Results */}
+                  {weaknessResults && (
+                    <div className="space-y-6">
+                      {/* Summary Stats */}
+                      <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                        <h3 className={`text-lg font-bold ${textColor} mb-4`}>⚠️ Weakness Summary</h3>
+                        <div className="grid grid-cols-4 gap-4">
+                          <div style={{ padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#374151' : '#f0f9ff' }}>
+                            <p style={{ color: darkMode ? '#9ca3af' : '#666', fontSize: '11px', marginBottom: '4px' }}>Total Weaknesses</p>
+                            <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#ef4444' }}>{weaknessResults.totalWeaknesses}</p>
+                          </div>
+                          <div style={{ padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#374151' : '#f0f9ff' }}>
+                            <p style={{ color: darkMode ? '#9ca3af' : '#666', fontSize: '11px', marginBottom: '4px' }}>Average P&L</p>
+                            <p style={{ fontSize: '18px', fontWeight: 'bold', color: weaknessResults.averageMetrics.avgPnL >= 0 ? '#22c55e' : '#ef4444' }}>₹{weaknessResults.averageMetrics.avgPnL.toLocaleString()}</p>
+                          </div>
+                          <div style={{ padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#374151' : '#f0f9ff' }}>
+                            <p style={{ color: darkMode ? '#9ca3af' : '#666', fontSize: '11px', marginBottom: '4px' }}>Average Win Rate</p>
+                            <p style={{ fontSize: '18px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{weaknessResults.averageMetrics.avgWinRate}%</p>
+                          </div>
+                          <div style={{ padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#374151' : '#f0f9ff' }}>
+                            <p style={{ color: darkMode ? '#9ca3af' : '#666', fontSize: '11px', marginBottom: '4px' }}>Threshold</p>
+                            <p style={{ fontSize: '18px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{weaknessResults.threshold}%</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Weakness List */}
+                      {weaknessResults.weaknesses.length > 0 ? (
+                        <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                          <h3 className={`text-lg font-bold ${textColor} mb-4`}>Identified Weaknesses</h3>
+                          <div className="space-y-4">
+                            {weaknessResults.weaknesses.map((weakness, idx) => (
+                              <div
+                                key={idx}
+                                style={{
+                                  padding: '16px',
+                                  borderRadius: '8px',
+                                  backgroundColor: weakness.severity === 'Critical' ? (darkMode ? '#5e0e0e' : '#fee2e2') : weakness.severity === 'High' ? (darkMode ? '#78350f' : '#fef3c7') : (darkMode ? '#374151' : '#f0f9ff'),
+                                  border: `2px solid ${weakness.severity === 'Critical' ? '#dc2626' : weakness.severity === 'High' ? '#f59e0b' : '#3b82f6'}`
+                                }}
+                              >
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: '16px' }}>
+                                  <div>
+                                    <p style={{ fontSize: '12px', fontWeight: 'bold', color: weakness.severity === 'Critical' ? '#dc2626' : weakness.severity === 'High' ? '#d97706' : '#0284c7', marginBottom: '8px', textTransform: 'uppercase' }}>{weakness.severity} - {weakness.type}</p>
+                                    <p style={{ fontSize: '14px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937', marginBottom: '4px' }}>{weakness.period}</p>
+                                    <p style={{ fontSize: '12px', color: darkMode ? '#d1d5db' : '#374151' }}>{weakness.description}</p>
+                                  </div>
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                                    <div>
+                                      <p style={{ fontSize: '10px', color: darkMode ? '#9ca3af' : '#666' }}>Actual Avg P&L</p>
+                                      <p style={{ fontSize: '14px', fontWeight: 'bold', color: weakness.avgPnL >= 0 ? '#22c55e' : '#ef4444' }}>₹{weakness.avgPnL.toLocaleString()}</p>
+                                    </div>
+                                    <div>
+                                      <p style={{ fontSize: '10px', color: darkMode ? '#9ca3af' : '#666' }}>Expected P&L</p>
+                                      <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#3b82f6' }}>₹{weakness.expectedPnL.toLocaleString()}</p>
+                                    </div>
+                                    <div>
+                                      <p style={{ fontSize: '10px', color: darkMode ? '#9ca3af' : '#666' }}>Loss Amount</p>
+                                      <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#ef4444' }}>₹{weakness.lossAmount.toLocaleString()}</p>
+                                    </div>
+                                    <div>
+                                      <p style={{ fontSize: '10px', color: darkMode ? '#9ca3af' : '#666' }}>Win Rate</p>
+                                      <p style={{ fontSize: '14px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{weakness.winRate}%</p>
+                                    </div>
+                                    <div>
+                                      <p style={{ fontSize: '10px', color: darkMode ? '#9ca3af' : '#666' }}>Trade Count</p>
+                                      <p style={{ fontSize: '14px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{weakness.tradeCount}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className={`${cardBg} rounded-lg p-8 text-center border ${borderColor}`}>
+                          <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            No significant weaknesses detected with current threshold
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!results && activeTab === 'weakness' && (
+                <div className={`${cardBg} rounded-2xl p-12 text-center border ${borderColor}`}>
+                  <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Upload and analyze a strategy to use weakness detection features
                   </p>
                 </div>
               )}
