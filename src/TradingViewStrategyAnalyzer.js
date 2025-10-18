@@ -761,28 +761,52 @@ const ModernTradingAnalyzer = () => {
   const calculateStrategyMetrics = (trades) => {
     if (trades.length === 0) return null;
 
-    const totalPnL = trades.reduce((sum, t) => sum + t.pnl, 0);
-    const winRate = (trades.filter(t => t.pnl > 0).length / trades.length) * 100;
-    const averagePnL = totalPnL / trades.length;
+    // Ensure pnl values are numbers
+    const validTrades = trades.filter(t => {
+      const pnl = parseFloat(t.pnl);
+      return !isNaN(pnl);
+    }).map(t => ({
+      ...t,
+      pnl: parseFloat(t.pnl)
+    }));
+
+    if (validTrades.length === 0) return null;
+
+    const totalPnL = validTrades.reduce((sum, t) => sum + t.pnl, 0);
+    const winRate = (validTrades.filter(t => t.pnl > 0).length / validTrades.length) * 100;
+    const averagePnL = totalPnL / validTrades.length;
 
     // Profit Factor
-    const grossProfit = trades.filter(t => t.pnl > 0).reduce((sum, t) => sum + t.pnl, 0);
-    const grossLoss = Math.abs(trades.filter(t => t.pnl < 0).reduce((sum, t) => sum + t.pnl, 0));
+    const grossProfit = validTrades.filter(t => t.pnl > 0).reduce((sum, t) => sum + t.pnl, 0);
+    const grossLoss = Math.abs(validTrades.filter(t => t.pnl < 0).reduce((sum, t) => sum + t.pnl, 0));
     const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? 1 : 0);
 
     // Sharpe Ratio (simplified - daily returns)
     const dailyReturns = {};
-    trades.forEach(trade => {
-      const date = new Date(trade.entryTime).toISOString().split('T')[0];
-      if (!dailyReturns[date]) dailyReturns[date] = 0;
-      dailyReturns[date] += trade.pnl;
+    validTrades.forEach(trade => {
+      try {
+        const entryTime = trade.entryTime || trade['Date/Time'];
+        if (!entryTime) return;
+
+        const dateObj = new Date(entryTime);
+        if (isNaN(dateObj.getTime())) return;
+
+        const date = dateObj.toISOString().split('T')[0];
+        if (!dailyReturns[date]) dailyReturns[date] = 0;
+        dailyReturns[date] += trade.pnl;
+      } catch (e) {
+        // Skip trades with invalid dates
+      }
     });
 
     const dailyReturnValues = Object.values(dailyReturns);
-    const meanReturn = dailyReturnValues.reduce((a, b) => a + b, 0) / dailyReturnValues.length;
-    const variance = dailyReturnValues.reduce((sum, r) => sum + Math.pow(r - meanReturn, 2), 0) / dailyReturnValues.length;
-    const stdDev = Math.sqrt(variance) || 1;
-    const sharpeRatio = Math.round((meanReturn / stdDev) * 100) / 100;
+    let sharpeRatio = 0;
+    if (dailyReturnValues.length > 0) {
+      const meanReturn = dailyReturnValues.reduce((a, b) => a + b, 0) / dailyReturnValues.length;
+      const variance = dailyReturnValues.reduce((sum, r) => sum + Math.pow(r - meanReturn, 2), 0) / dailyReturnValues.length;
+      const stdDev = Math.sqrt(variance) || 1;
+      sharpeRatio = Math.round((meanReturn / stdDev) * 100) / 100;
+    }
 
     // Consecutive wins/losses
     let maxConsecutiveWins = 0;
@@ -790,7 +814,7 @@ const ModernTradingAnalyzer = () => {
     let currentWins = 0;
     let currentLosses = 0;
 
-    trades.forEach(trade => {
+    validTrades.forEach(trade => {
       if (trade.pnl > 0) {
         currentWins++;
         currentLosses = 0;
@@ -810,7 +834,7 @@ const ModernTradingAnalyzer = () => {
     let maxDrawdown = 0;
     let cumulativePnL = 0;
 
-    trades.forEach(trade => {
+    validTrades.forEach(trade => {
       cumulativePnL += trade.pnl;
       if (cumulativePnL > peak) {
         peak = cumulativePnL;
@@ -820,12 +844,31 @@ const ModernTradingAnalyzer = () => {
     });
 
     // Trade duration
-    const durations = trades.map(t => {
-      const start = new Date(t.entryTime).getTime();
-      const end = new Date(t.exitTime).getTime();
-      return (end - start) / (1000 * 60); // in minutes
+    let avgTradeDuration = 0;
+    const validDurations = [];
+    validTrades.forEach(t => {
+      try {
+        const entryTime = t.entryTime || t['Date/Time'];
+        const exitTime = t.exitTime;
+        if (!entryTime || !exitTime) return;
+
+        const start = new Date(entryTime).getTime();
+        const end = new Date(exitTime).getTime();
+
+        if (isNaN(start) || isNaN(end)) return;
+
+        const duration = (end - start) / (1000 * 60); // in minutes
+        if (duration >= 0) {
+          validDurations.push(duration);
+        }
+      } catch (e) {
+        // Skip trades with invalid dates
+      }
     });
-    const avgTradeDuration = durations.reduce((a, b) => a + b, 0) / durations.length;
+
+    if (validDurations.length > 0) {
+      avgTradeDuration = validDurations.reduce((a, b) => a + b, 0) / validDurations.length;
+    }
 
     return {
       totalTrades: trades.length,
@@ -969,16 +1012,48 @@ const ModernTradingAnalyzer = () => {
         const lines = text.split('\n');
         const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
 
+        // Find indices of key columns
+        const tradeNumIndex = headers.findIndex(h => h === 'Trade #');
+        const typeIndex = headers.findIndex(h => h === 'Type');
+        const dateTimeIndex = headers.findIndex(h => h === 'Date/Time');
+        const pnlIndex = headers.findIndex(h => h.includes('Net P&L') || h.includes('P&L'));
+
         const trades = [];
+        const tradePairs = {};
+
         for (let i = 1; i < lines.length; i++) {
           if (!lines[i].trim()) continue;
-          const values = lines[i].split(',');
-          const trade = {};
-          for (let j = 0; j < headers.length; j++) {
-            trade[headers[j]] = values[j]?.trim().replace(/"/g, '');
+          const values = lines[i].split(',').map(v => v?.trim().replace(/"/g, ''));
+
+          const tradeNum = values[tradeNumIndex];
+          const type = values[typeIndex];
+          const dateTime = values[dateTimeIndex];
+          const pnl = parseFloat(values[pnlIndex]) || 0;
+
+          if (!tradeNum || !type || !dateTime) continue;
+
+          if (!tradePairs[tradeNum]) {
+            tradePairs[tradeNum] = {};
           }
-          if (trade['Trade #'] && trade['Type'] && trade['Date/Time']) {
-            trades.push(trade);
+
+          if (type.toLowerCase().includes('entry')) {
+            tradePairs[tradeNum].entryTime = dateTime;
+          } else if (type.toLowerCase().includes('exit')) {
+            tradePairs[tradeNum].exitTime = dateTime;
+            tradePairs[tradeNum].pnl = pnl;
+          }
+        }
+
+        // Create complete trade pairs
+        for (const tradeNum in tradePairs) {
+          const pair = tradePairs[tradeNum];
+          if (pair.entryTime && pair.exitTime) {
+            trades.push({
+              tradeNumber: tradeNum,
+              entryTime: pair.entryTime,
+              exitTime: pair.exitTime,
+              pnl: pair.pnl || 0
+            });
           }
         }
 
