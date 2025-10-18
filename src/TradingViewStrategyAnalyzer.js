@@ -34,6 +34,18 @@ const ModernTradingAnalyzer = () => {
   const [segmentationResults, setSegmentationResults] = useState(null);
   const [expandedSegment, setExpandedSegment] = useState(null);
 
+  // Enhanced Heatmaps State (Phase 3)
+  const [heatmapResolution, setHeatmapResolution] = useState(15); // 1, 5, 15, 30, 60 minutes
+  const [heatmapMetric, setHeatmapMetric] = useState('pnl'); // pnl, winrate, trades
+  const [heatmapResults, setHeatmapResults] = useState(null);
+
+  // Exit & Stop Optimization State (Phase 6)
+  const [stopLossPercent, setStopLossPercent] = useState(1);
+  const [takeProfitPercent, setTakeProfitPercent] = useState(2);
+  const [optimizationResults, setOptimizationResults] = useState(null);
+  const [optimizationMode, setOptimizationMode] = useState('manual'); // manual or auto
+  const [isOptimizing, setIsOptimizing] = useState(false);
+
   const addToast = (message, type = 'info') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
@@ -1069,6 +1081,147 @@ const ModernTradingAnalyzer = () => {
     addToast(`Segmentation analysis complete: ${segmentAnalysis.length} segments analyzed`, 'success');
   }, [cachedData, results, segmentationType]);
 
+  // Enhanced Heatmap Analysis (Phase 3)
+  const performEnhancedHeatmapAnalysis = useCallback(() => {
+    if (!cachedData || !cachedData.completeTrades) return;
+
+    const trades = cachedData.completeTrades;
+    const matrix = {};
+
+    trades.forEach(trade => {
+      try {
+        const date = new Date(trade.entryTime);
+        const day = date.getDay();
+        const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day];
+
+        let timeSlot;
+        if (heatmapResolution === 1) {
+          timeSlot = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+        } else {
+          const minutes = Math.floor(date.getMinutes() / heatmapResolution) * heatmapResolution;
+          timeSlot = `${date.getHours().toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        }
+
+        const key = `${dayName}-${timeSlot}`;
+        if (!matrix[key]) matrix[key] = [];
+        matrix[key].push(trade);
+      } catch (e) {
+        // Skip invalid trades
+      }
+    });
+
+    const heatmapData = Object.entries(matrix).map(([key, segmentTrades]) => {
+      const totalPnL = segmentTrades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0);
+      const winCount = segmentTrades.filter(t => (parseFloat(t.pnl) || 0) > 0).length;
+      const winRate = (winCount / segmentTrades.length) * 100;
+
+      return {
+        period: key,
+        pnl: Math.round(totalPnL),
+        winrate: Math.round(winRate * 100) / 100,
+        trades: segmentTrades.length,
+        intensity: Math.abs(totalPnL)
+      };
+    });
+
+    setHeatmapResults({
+      data: heatmapData,
+      resolution: heatmapResolution,
+      metric: heatmapMetric
+    });
+
+    addToast(`Heatmap generated: ${heatmapData.length} time slots analyzed`, 'success');
+  }, [cachedData, heatmapResolution, heatmapMetric]);
+
+  // Exit & Stop Optimization (Phase 6)
+  const performExitOptimization = useCallback(() => {
+    if (!cachedData || !cachedData.completeTrades) return;
+
+    setIsOptimizing(true);
+
+    try {
+      const trades = cachedData.completeTrades;
+      const results = [];
+
+      // If in auto mode, grid search through combinations
+      const stopLossValues = optimizationMode === 'auto'
+        ? [0.5, 1, 1.5, 2, 2.5, 3, 4, 5]
+        : [stopLossPercent];
+
+      const takeProfitValues = optimizationMode === 'auto'
+        ? [1, 2, 3, 4, 5, 6, 8, 10]
+        : [takeProfitPercent];
+
+      stopLossValues.forEach(sl => {
+        takeProfitValues.forEach(tp => {
+          let totalPnL = 0;
+          let wins = 0;
+          let losses = 0;
+          let winPnL = 0;
+          let lossPnL = 0;
+
+          trades.forEach(trade => {
+            const pnl = parseFloat(trade.pnl) || 0;
+
+            // Simulate with stop loss and take profit
+            if (pnl > tp) {
+              // Would hit take profit
+              totalPnL += tp;
+              wins++;
+              winPnL += tp;
+            } else if (pnl < -sl) {
+              // Would hit stop loss
+              totalPnL -= sl;
+              losses++;
+              lossPnL -= sl;
+            } else {
+              // Trade closes at actual P&L
+              totalPnL += pnl;
+              if (pnl > 0) {
+                wins++;
+                winPnL += pnl;
+              } else {
+                losses++;
+                lossPnL += pnl;
+              }
+            }
+          });
+
+          const totalTrades = wins + losses;
+          const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
+          const profitFactor = lossPnL !== 0 ? winPnL / Math.abs(lossPnL) : (winPnL > 0 ? 1 : 0);
+
+          results.push({
+            stopLoss: sl,
+            takeProfit: tp,
+            totalPnL: Math.round(totalPnL),
+            totalTrades,
+            wins,
+            losses,
+            winRate: Math.round(winRate * 100) / 100,
+            profitFactor: Math.round(profitFactor * 100) / 100
+          });
+        });
+      });
+
+      // Sort by profit factor for best results
+      results.sort((a, b) => b.profitFactor - a.profitFactor);
+
+      setOptimizationResults({
+        configurations: results,
+        bestConfig: results[0],
+        currentConfig: { stopLoss: stopLossPercent, takeProfit: takeProfitPercent },
+        isGridSearch: optimizationMode === 'auto'
+      });
+
+      addToast(`Optimization complete: ${results.length} configurations evaluated`, 'success');
+    } catch (err) {
+      addToast('Error optimizing: ' + err.message, 'error');
+    } finally {
+      setIsOptimizing(false);
+    }
+  }, [cachedData, stopLossPercent, takeProfitPercent, optimizationMode]);
+
   const handleFileUpload = useCallback(async (event) => {
     const uploadedFile = event.target.files[0];
     if (!uploadedFile) return;
@@ -1398,6 +1551,8 @@ TIME SLOT ANALYSIS
     { id: 'analytics', label: 'Advanced Analytics', icon: Activity },
     { id: 'comparison', label: 'Strategy Comparison', icon: BarChart3 },
     { id: 'segmentation', label: 'Segmentation', icon: Activity },
+    { id: 'heatmap', label: 'Enhanced Heatmap', icon: Activity },
+    { id: 'optimization', label: 'Exit Optimization', icon: Target },
   ];
 
   return (
@@ -2907,6 +3062,255 @@ TIME SLOT ANALYSIS
                 <div className={`${cardBg} rounded-2xl p-12 text-center border ${borderColor}`}>
                   <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     Upload and analyze a strategy to use segmentation features
+                  </p>
+                </div>
+              )}
+
+              {/* Enhanced Heatmap Tab (Phase 3) */}
+              {activeTab === 'heatmap' && results && (
+                <div className="space-y-6">
+                  {/* Controls */}
+                  <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                    <h3 className={`text-lg font-bold ${textColor} mb-4`}>Heatmap Configuration</h3>
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <p className={`text-sm font-medium ${textColor} mb-3`}>Time Resolution (minutes)</p>
+                        <div className="grid grid-cols-5 gap-2">
+                          {[1, 5, 15, 30, 60].map(res => (
+                            <button
+                              key={res}
+                              onClick={() => {
+                                setHeatmapResolution(res);
+                                setTimeout(() => performEnhancedHeatmapAnalysis(), 0);
+                              }}
+                              className={`px-3 py-2 rounded text-sm font-medium transition-all ${
+                                heatmapResolution === res
+                                  ? 'bg-blue-600 text-white'
+                                  : `${darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`
+                              }`}
+                            >
+                              {res}m
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className={`text-sm font-medium ${textColor} mb-3`}>Display Metric</p>
+                        <div className="space-y-2">
+                          {[
+                            { value: 'pnl', label: 'P&L' },
+                            { value: 'winrate', label: 'Win Rate %' },
+                            { value: 'trades', label: 'Trade Count' }
+                          ].map(metric => (
+                            <label key={metric.value} className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="metric"
+                                value={metric.value}
+                                checked={heatmapMetric === metric.value}
+                                onChange={(e) => {
+                                  setHeatmapMetric(e.target.value);
+                                  setTimeout(() => performEnhancedHeatmapAnalysis(), 0);
+                                }}
+                                className="w-4 h-4"
+                              />
+                              <span className={`text-sm ${textColor}`}>{metric.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Heatmap Grid */}
+                  {heatmapResults && heatmapResults.data.length > 0 ? (
+                    <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                      <h3 className={`text-lg font-bold ${textColor} mb-4`}>Time-Based Performance Heatmap</h3>
+                      <div className="grid grid-cols-7 gap-1 p-4 rounded-lg bg-gray-100 dark:bg-gray-900">
+                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                          <div key={day} className="text-center font-bold text-xs text-gray-600 dark:text-gray-400 mb-2">
+                            {day}
+                          </div>
+                        ))}
+                        {heatmapResults.data.map((slot, idx) => {
+                          const maxIntensity = Math.max(...heatmapResults.data.map(s => s.intensity));
+                          const intensity = maxIntensity > 0 ? slot.intensity / maxIntensity : 0;
+                          const isPositive = slot.pnl >= 0;
+
+                          return (
+                            <div
+                              key={idx}
+                              title={`${slot.period}: ₹${slot.pnl.toLocaleString()}, Win Rate: ${slot.winrate}%, Trades: ${slot.trades}`}
+                              className={`p-2 rounded text-xs text-center cursor-pointer transition-all ${
+                                isPositive
+                                  ? `bg-green-${Math.ceil(intensity * 9) || 2}00 text-white`
+                                  : `bg-red-${Math.ceil(intensity * 9) || 2}00 text-white`
+                              }`}
+                            >
+                              <div className="font-bold">{slot[heatmapMetric === 'pnl' ? 'pnl' : heatmapMetric === 'winrate' ? 'winrate' : 'trades']}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={`${cardBg} rounded-lg p-8 text-center border ${borderColor}`}>
+                      <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Click a resolution above to generate heatmap
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!results && activeTab === 'heatmap' && (
+                <div className={`${cardBg} rounded-2xl p-12 text-center border ${borderColor}`}>
+                  <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Upload and analyze a strategy to use heatmap features
+                  </p>
+                </div>
+              )}
+
+              {/* Exit & Stop Optimization Tab (Phase 6) */}
+              {activeTab === 'optimization' && results && (
+                <div className="space-y-6">
+                  {/* Controls */}
+                  <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                    <h3 className={`text-lg font-bold ${textColor} mb-4`}>Exit & Stop Configuration</h3>
+                    <div className="grid grid-cols-3 gap-6">
+                      <div>
+                        <p className={`text-sm font-medium ${textColor} mb-2`}>Stop Loss: {stopLossPercent.toFixed(2)}%</p>
+                        <input
+                          type="range"
+                          min="0.5"
+                          max="5"
+                          step="0.1"
+                          value={stopLossPercent}
+                          onChange={(e) => setStopLossPercent(parseFloat(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+                      <div>
+                        <p className={`text-sm font-medium ${textColor} mb-2`}>Take Profit: {takeProfitPercent.toFixed(2)}%</p>
+                        <input
+                          type="range"
+                          min="1"
+                          max="10"
+                          step="0.1"
+                          value={takeProfitPercent}
+                          onChange={(e) => setTakeProfitPercent(parseFloat(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+                      <div>
+                        <p className={`text-sm font-medium ${textColor} mb-2`}>Optimization Mode</p>
+                        <select
+                          value={optimizationMode}
+                          onChange={(e) => setOptimizationMode(e.target.value)}
+                          className={`w-full px-3 py-2 rounded ${darkMode ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900'}`}
+                        >
+                          <option value="manual">Manual</option>
+                          <option value="auto">Grid Search (Auto)</option>
+                        </select>
+                      </div>
+                    </div>
+                    <button
+                      onClick={performExitOptimization}
+                      disabled={isOptimizing}
+                      className="w-full mt-4 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 disabled:from-gray-500 disabled:to-gray-500 transition-all font-semibold flex items-center justify-center gap-2"
+                    >
+                      {isOptimizing ? (
+                        <>
+                          <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          Optimizing...
+                        </>
+                      ) : (
+                        <>
+                          🎯 {optimizationMode === 'auto' ? 'Run Grid Search' : 'Calculate P&L'}
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Results */}
+                  {optimizationResults ? (
+                    <div className="space-y-6">
+                      {/* Best Configuration */}
+                      {optimizationResults.isGridSearch && (
+                        <div className="grid grid-cols-4 gap-4">
+                          <div className={`${cardBg} rounded-lg p-4 border ${borderColor}`}>
+                            <p className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Best Stop Loss</p>
+                            <p className="text-2xl font-bold text-blue-600">{optimizationResults.bestConfig.stopLoss}%</p>
+                          </div>
+                          <div className={`${cardBg} rounded-lg p-4 border ${borderColor}`}>
+                            <p className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Best Take Profit</p>
+                            <p className="text-2xl font-bold text-green-600">{optimizationResults.bestConfig.takeProfit}%</p>
+                          </div>
+                          <div className={`${cardBg} rounded-lg p-4 border ${borderColor}`}>
+                            <p className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Best P&L</p>
+                            <p className={`text-2xl font-bold ${optimizationResults.bestConfig.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              ₹{optimizationResults.bestConfig.totalPnL.toLocaleString()}
+                            </p>
+                          </div>
+                          <div className={`${cardBg} rounded-lg p-4 border ${borderColor}`}>
+                            <p className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Best Profit Factor</p>
+                            <p className="text-2xl font-bold text-purple-600">{optimizationResults.bestConfig.profitFactor.toFixed(2)}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Comparison Table */}
+                      <div className={`${cardBg} rounded-lg p-6 border ${borderColor} overflow-x-auto`}>
+                        <h3 className={`text-lg font-bold ${textColor} mb-4`}>{optimizationMode === 'auto' ? 'Top 10 Configurations' : 'Current Configuration'}</h3>
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className={`border-b ${borderColor}`}>
+                              <th className={`text-left py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Stop Loss %</th>
+                              <th className={`text-left py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Take Profit %</th>
+                              <th className={`text-right py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Win/Loss</th>
+                              <th className={`text-right py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Total P&L</th>
+                              <th className={`text-right py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Win Rate %</th>
+                              <th className={`text-right py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Profit Factor</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {optimizationResults.configurations.slice(0, optimizationMode === 'auto' ? 10 : 1).map((config, idx) => (
+                              <tr
+                                key={idx}
+                                className={`border-b ${borderColor} ${idx === 0 && optimizationMode === 'auto' ? 'bg-blue-50 dark:bg-blue-900 dark:bg-opacity-30' : ''}`}
+                              >
+                                <td className={`py-3 px-2 ${idx === 0 && optimizationMode === 'auto' ? 'font-bold text-blue-600' : textColor}`}>
+                                  {config.stopLoss}%
+                                </td>
+                                <td className={`py-3 px-2 ${idx === 0 && optimizationMode === 'auto' ? 'font-bold text-blue-600' : textColor}`}>
+                                  {config.takeProfit}%
+                                </td>
+                                <td className={`py-3 px-2 text-right ${textColor}`}>{config.wins}/{config.losses}</td>
+                                <td className={`py-3 px-2 text-right ${config.totalPnL >= 0 ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}`}>
+                                  ₹{config.totalPnL.toLocaleString()}
+                                </td>
+                                <td className={`py-3 px-2 text-right ${textColor}`}>{config.winRate.toFixed(2)}%</td>
+                                <td className={`py-3 px-2 text-right ${textColor}`}>{config.profitFactor.toFixed(2)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={`${cardBg} rounded-lg p-8 text-center border ${borderColor}`}>
+                      <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Configure stop loss and take profit, then calculate or run grid search
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!results && activeTab === 'optimization' && (
+                <div className={`${cardBg} rounded-2xl p-12 text-center border ${borderColor}`}>
+                  <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Upload and analyze a strategy to use optimization features
                   </p>
                 </div>
               )}

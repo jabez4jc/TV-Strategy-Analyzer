@@ -42,7 +42,7 @@ The TradingView Strategy Analyzer is a powerful web application that processes C
 - **Best Strategy Auto-Detection**: Identify winners by multiple metrics (P&L, Win Rate, Profit Factor, Sharpe Ratio)
 - **Performance Rankings**: Automatic ranking of strategies by profit factor
 
-### 📊 Advanced Segmentation (Phase 4 - NEW)
+### 📊 Advanced Segmentation (Phase 4)
 - **Multiple Segmentation Types**:
   - **Day of Week**: Performance analysis by trading day
   - **Hour of Day**: Hourly performance breakdown
@@ -53,6 +53,28 @@ The TradingView Strategy Analyzer is a powerful web application that processes C
 - **Visual Comparisons**: Bar charts showing P&L and win rate across segments
 - **Detailed Tables**: Sortable segment analysis with best/worst indicators
 - **Drill-Down Details**: Click segments for individual trade details
+
+### 🔥 Enhanced Time-of-Day Heatmaps (Phase 3 - NEW)
+- **Multi-Resolution Support**: 1, 5, 15, 30, 60-minute analysis buckets
+- **2D Matrix Visualization**: Day of week × Time of day performance matrix
+- **Multiple Metrics**: Display P&L, Win Rate %, or Trade Count
+- **Color-Coded Intensity**: Green/red gradient shows profitable/unprofitable periods
+- **Interactive Drill-Down**: Hover for detailed statistics (P&L, win rate, trade count)
+- **Real-Time Switching**: Instantly toggle between resolutions and metrics
+
+### 🎯 Exit & Stop Optimization (Phase 6 - NEW)
+- **Manual Optimization**: Test specific stop-loss and take-profit combinations
+- **Grid Search (Auto Mode)**: Automatically test 64 combinations (8×8 grid)
+- **Configurable Ranges**:
+  - Stop-Loss: 0.5% - 5%
+  - Take-Profit: 1% - 10%
+- **Monte Carlo Simulation**: Evaluates impact on all historical trades
+- **Comprehensive Results**:
+  - P&L impact for each configuration
+  - Win rate and profit factor improvements
+  - Top 10 best configurations ranked by profit factor
+- **Best Configuration Detection**: Automatically identifies optimal parameters
+- **Before/After Comparison**: Shows current vs optimized performance
 
 ### 📋 Data Export & Visualization
 - **Interactive Charts**: LineCharts, BarCharts, ScatterCharts for visual analysis
