@@ -29,6 +29,11 @@ const ModernTradingAnalyzer = () => {
   const [dragOverMulti, setDragOverMulti] = useState(false);
   const [comparisonResults, setComparisonResults] = useState(null);
 
+  // Advanced Segmentation State (Phase 4)
+  const [segmentationType, setSegmentationType] = useState('day'); // day, hour, symbol, direction, duration
+  const [segmentationResults, setSegmentationResults] = useState(null);
+  const [expandedSegment, setExpandedSegment] = useState(null);
+
   const addToast = (message, type = 'info') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
@@ -960,6 +965,110 @@ const ModernTradingAnalyzer = () => {
     }
   }, [strategies, selectedStrategies]);
 
+  // Advanced Segmentation Analysis (Phase 4)
+  const performSegmentationAnalysis = useCallback(() => {
+    if (!cachedData || !cachedData.completeTrades) return;
+
+    const trades = cachedData.completeTrades;
+    let segments = {};
+
+    switch (segmentationType) {
+      case 'day':
+        // Segment by day of week
+        trades.forEach(trade => {
+          const date = new Date(trade.entryTime);
+          const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][date.getDay()];
+          if (!segments[dayName]) segments[dayName] = [];
+          segments[dayName].push(trade);
+        });
+        break;
+
+      case 'hour':
+        // Segment by hour of day
+        trades.forEach(trade => {
+          const date = new Date(trade.entryTime);
+          const hour = `${date.getHours().toString().padStart(2, '0')}:00`;
+          if (!segments[hour]) segments[hour] = [];
+          segments[hour].push(trade);
+        });
+        break;
+
+      case 'symbol':
+        // Segment by trading symbol (if available in filename)
+        const symbol = results?.fileInfo?.symbol || 'Unknown';
+        segments[symbol] = trades;
+        break;
+
+      case 'direction':
+        // Segment by trade direction (profit/loss)
+        trades.forEach(trade => {
+          const direction = trade.pnl > 0 ? 'Winning Trades' : trade.pnl < 0 ? 'Losing Trades' : 'Breakeven';
+          if (!segments[direction]) segments[direction] = [];
+          segments[direction].push(trade);
+        });
+        break;
+
+      case 'duration':
+        // Segment by trade duration
+        trades.forEach(trade => {
+          const start = new Date(trade.entryTime).getTime();
+          const end = new Date(trade.exitTime).getTime();
+          const durationMinutes = (end - start) / (1000 * 60);
+
+          let durationBucket;
+          if (durationMinutes < 5) durationBucket = '< 5 min';
+          else if (durationMinutes < 15) durationBucket = '5-15 min';
+          else if (durationMinutes < 60) durationBucket = '15-60 min';
+          else if (durationMinutes < 240) durationBucket = '1-4 hours';
+          else durationBucket = '> 4 hours';
+
+          if (!segments[durationBucket]) segments[durationBucket] = [];
+          segments[durationBucket].push(trade);
+        });
+        break;
+
+      default:
+        break;
+    }
+
+    // Calculate metrics for each segment
+    const segmentAnalysis = Object.entries(segments).map(([segmentName, segmentTrades]) => {
+      const totalPnL = segmentTrades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0);
+      const winCount = segmentTrades.filter(t => (parseFloat(t.pnl) || 0) > 0).length;
+      const lossCount = segmentTrades.filter(t => (parseFloat(t.pnl) || 0) < 0).length;
+      const winRate = segmentTrades.length > 0 ? (winCount / segmentTrades.length) * 100 : 0;
+
+      const grossProfit = segmentTrades.filter(t => (parseFloat(t.pnl) || 0) > 0).reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0);
+      const grossLoss = Math.abs(segmentTrades.filter(t => (parseFloat(t.pnl) || 0) < 0).reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0));
+      const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? 1 : 0);
+
+      const avgPnL = segmentTrades.length > 0 ? totalPnL / segmentTrades.length : 0;
+
+      return {
+        name: segmentName,
+        totalTrades: segmentTrades.length,
+        winTrades: winCount,
+        lossTrades: lossCount,
+        totalPnL: Math.round(totalPnL),
+        avgPnL: Math.round(avgPnL * 100) / 100,
+        winRate: Math.round(winRate * 100) / 100,
+        profitFactor: Math.round(profitFactor * 100) / 100,
+        trades: segmentTrades
+      };
+    });
+
+    // Sort by profit factor
+    segmentAnalysis.sort((a, b) => b.profitFactor - a.profitFactor);
+
+    setSegmentationResults({
+      segmentationType,
+      segments: segmentAnalysis,
+      totalSegments: segmentAnalysis.length
+    });
+
+    addToast(`Segmentation analysis complete: ${segmentAnalysis.length} segments analyzed`, 'success');
+  }, [cachedData, results, segmentationType]);
+
   const handleFileUpload = useCallback(async (event) => {
     const uploadedFile = event.target.files[0];
     if (!uploadedFile) return;
@@ -1288,6 +1397,7 @@ TIME SLOT ANALYSIS
     { id: 'profitfactor', label: 'By Profit Factor', icon: Zap },
     { id: 'analytics', label: 'Advanced Analytics', icon: Activity },
     { id: 'comparison', label: 'Strategy Comparison', icon: BarChart3 },
+    { id: 'segmentation', label: 'Segmentation', icon: Activity },
   ];
 
   return (
@@ -2640,6 +2750,164 @@ TIME SLOT ANALYSIS
                       )}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Segmentation Tab (Phase 4) */}
+              {activeTab === 'segmentation' && results && (
+                <div className="space-y-6">
+                  {/* Segmentation Type Selector */}
+                  <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                    <h3 className={`text-lg font-bold ${textColor} mb-4`}>Segment Analysis By</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                      {[
+                        { id: 'day', label: '📅 Day of Week', icon: 'D' },
+                        { id: 'hour', label: '⏰ Hour of Day', icon: 'H' },
+                        { id: 'direction', label: '📊 P&L Direction', icon: 'P' },
+                        { id: 'duration', label: '⏳ Trade Duration', icon: 'T' },
+                        { id: 'symbol', label: '🎯 Symbol', icon: 'S' }
+                      ].map(option => (
+                        <button
+                          key={option.id}
+                          onClick={() => {
+                            setSegmentationType(option.id);
+                            setTimeout(() => performSegmentationAnalysis(), 0);
+                          }}
+                          className={`px-4 py-3 rounded-lg transition-all font-medium text-sm ${
+                            segmentationType === option.id
+                              ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
+                              : `${darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Segmentation Results */}
+                  {segmentationResults && segmentationResults.segments.length > 0 ? (
+                    <div className="space-y-6">
+                      {/* Summary Stats */}
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className={`${cardBg} rounded-lg p-4 border ${borderColor}`}>
+                          <p className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Total Segments</p>
+                          <p className="text-3xl font-bold text-blue-600">{segmentationResults.totalSegments}</p>
+                        </div>
+                        <div className={`${cardBg} rounded-lg p-4 border ${borderColor}`}>
+                          <p className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Best Segment</p>
+                          <p className="text-lg font-bold text-green-600">{segmentationResults.segments[0]?.name}</p>
+                          <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>PF: {segmentationResults.segments[0]?.profitFactor.toFixed(2)}</p>
+                        </div>
+                        <div className={`${cardBg} rounded-lg p-4 border ${borderColor}`}>
+                          <p className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Best Performance</p>
+                          <p className={`text-lg font-bold ${segmentationResults.segments[0]?.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            ₹{segmentationResults.segments[0]?.totalPnL.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Segment Performance Chart */}
+                      <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                        <h3 className={`text-lg font-bold ${textColor} mb-4`}>Segment P&L Comparison</h3>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <BarChart data={segmentationResults.segments}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#374151' : '#e5e7eb'} />
+                            <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} stroke={darkMode ? '#9ca3af' : '#6b7280'} />
+                            <YAxis stroke={darkMode ? '#9ca3af' : '#6b7280'} />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: darkMode ? '#1f2937' : '#ffffff',
+                                border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`,
+                                borderRadius: '8px'
+                              }}
+                              formatter={(value) => `₹${value.toLocaleString()}`}
+                            />
+                            <Bar dataKey="totalPnL" fill="#3b82f6" radius={[8, 8, 0, 0]}>
+                              {segmentationResults.segments.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.totalPnL >= 0 ? '#10b981' : '#ef4444'} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+
+                      {/* Segment Win Rate Comparison */}
+                      <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                        <h3 className={`text-lg font-bold ${textColor} mb-4`}>Win Rate by Segment</h3>
+                        <ResponsiveContainer width="100%" height={250}>
+                          <BarChart data={segmentationResults.segments}>
+                            <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#374151' : '#e5e7eb'} />
+                            <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} stroke={darkMode ? '#9ca3af' : '#6b7280'} />
+                            <YAxis stroke={darkMode ? '#9ca3af' : '#6b7280'} label={{ value: '%', angle: -90, position: 'insideLeft' }} />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: darkMode ? '#1f2937' : '#ffffff',
+                                border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`,
+                                borderRadius: '8px'
+                              }}
+                              formatter={(value) => `${value.toFixed(2)}%`}
+                            />
+                            <Bar dataKey="winRate" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+
+                      {/* Detailed Segment Table */}
+                      <div className={`${cardBg} rounded-lg p-6 border ${borderColor} overflow-x-auto`}>
+                        <h3 className={`text-lg font-bold ${textColor} mb-4`}>Detailed Segment Analysis</h3>
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className={`border-b ${borderColor}`}>
+                              <th className={`text-left py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Segment</th>
+                              <th className={`text-right py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Trades</th>
+                              <th className={`text-right py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Win/Loss</th>
+                              <th className={`text-right py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Total P&L</th>
+                              <th className={`text-right py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Avg P&L</th>
+                              <th className={`text-right py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Win Rate %</th>
+                              <th className={`text-right py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Profit Factor</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {segmentationResults.segments.map((segment, idx) => (
+                              <tr
+                                key={idx}
+                                className={`border-b ${borderColor} cursor-pointer hover:${darkMode ? 'bg-gray-700' : 'bg-gray-50'} transition-colors`}
+                                onClick={() => setExpandedSegment(expandedSegment === idx ? null : idx)}
+                              >
+                                <td className={`py-3 px-2 font-medium ${idx === 0 ? 'text-blue-600' : textColor}`}>
+                                  {segment.name}
+                                  {idx === 0 && <span className="ml-2 text-xs bg-blue-600 text-white px-2 py-1 rounded">🏆 Best</span>}
+                                </td>
+                                <td className={`py-3 px-2 text-right ${textColor}`}>{segment.totalTrades}</td>
+                                <td className={`py-3 px-2 text-right ${textColor}`}>{segment.winTrades}/{segment.lossTrades}</td>
+                                <td className={`py-3 px-2 text-right ${segment.totalPnL >= 0 ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}`}>
+                                  ₹{segment.totalPnL.toLocaleString()}
+                                </td>
+                                <td className={`py-3 px-2 text-right ${textColor}`}>₹{segment.avgPnL.toLocaleString()}</td>
+                                <td className={`py-3 px-2 text-right ${textColor}`}>{segment.winRate.toFixed(2)}%</td>
+                                <td className={`py-3 px-2 text-right ${textColor}`}>{segment.profitFactor.toFixed(2)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={`${cardBg} rounded-lg p-8 text-center border ${borderColor}`}>
+                      <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Click a segmentation type above to analyze your trades
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!results && activeTab === 'segmentation' && (
+                <div className={`${cardBg} rounded-2xl p-12 text-center border ${borderColor}`}>
+                  <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Upload and analyze a strategy to use segmentation features
+                  </p>
                 </div>
               )}
             </div>

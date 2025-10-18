@@ -33,7 +33,7 @@ The TradingView Strategy Analyzer is a powerful web application that processes C
 - **Intraday Filter**: Option to analyze only same-day trades
 - **Multiple Sorting**: Sort by profitability, win rate, or profit factor
 
-### 🔄 Multi-Strategy Comparison (Phase 1 - NEW)
+### 🔄 Multi-Strategy Comparison (Phase 1)
 - **Multiple Strategy Upload**: Load and compare up to 5 CSV files simultaneously
 - **Side-by-Side Metrics**: Compare key performance indicators across strategies
 - **Overlay Equity Curves**: Visualize cumulative P&L progression for all strategies
@@ -41,6 +41,18 @@ The TradingView Strategy Analyzer is a powerful web application that processes C
 - **Risk vs Return Analysis**: Scatter plot analysis of drawdown vs profitability
 - **Best Strategy Auto-Detection**: Identify winners by multiple metrics (P&L, Win Rate, Profit Factor, Sharpe Ratio)
 - **Performance Rankings**: Automatic ranking of strategies by profit factor
+
+### 📊 Advanced Segmentation (Phase 4 - NEW)
+- **Multiple Segmentation Types**:
+  - **Day of Week**: Performance analysis by trading day
+  - **Hour of Day**: Hourly performance breakdown
+  - **P&L Direction**: Separate winning vs losing trades
+  - **Trade Duration**: Performance by trade holding period
+  - **Symbol**: Performance by trading instrument
+- **Segment Performance Metrics**: Comprehensive metrics per segment including P&L, win rate, profit factor
+- **Visual Comparisons**: Bar charts showing P&L and win rate across segments
+- **Detailed Tables**: Sortable segment analysis with best/worst indicators
+- **Drill-Down Details**: Click segments for individual trade details
 
 ### 📋 Data Export & Visualization
 - **Interactive Charts**: LineCharts, BarCharts, ScatterCharts for visual analysis
