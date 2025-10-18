@@ -3264,8 +3264,38 @@ TIME SLOT ANALYSIS
                         const profitFactor = totalLosses > 0 ? totalWins / (totalLosses || 1) : totalWins > 0 ? Infinity : 0;
                         const avgPnLPerTrade = totalTrades > 0 ? totalPnL / totalTrades : 0;
 
+                        // Parse best/worst periods for clear display
+                        const parseBestPeriod = (period) => {
+                          const parts = period.split('-');
+                          const day = parts[0];
+                          const time = parts[1];
+                          return { day, time, fullPeriod: period };
+                        };
+
+                        const bestPeriodInfo = parseBestPeriod(topPeriods[0].period);
+                        const worstPeriodInfo = parseBestPeriod(bottomPeriods[0].period);
+
                         return (
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
+                            {/* BEST TIME TO TRADE - PROMINENT CALLOUT */}
+                            <div style={{ padding: '20px', borderRadius: '10px', backgroundColor: '#10b981', border: '3px solid #059669', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                              <div style={{ color: '#ffffff', textAlign: 'center' }}>
+                                <p style={{ fontSize: '12px', fontWeight: 'bold', opacity: 0.9, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>✅ BEST TIME TO TRADE</p>
+                                <p style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '4px' }}>{bestPeriodInfo.day} at {bestPeriodInfo.time}</p>
+                                <p style={{ fontSize: '13px', opacity: 0.95 }}>P&L: ₹{topPeriods[0].pnl.toLocaleString()} | Win Rate: {topPeriods[0].winrate.toFixed(1)}% | {topPeriods[0].trades} trades</p>
+                                <p style={{ fontSize: '11px', opacity: 0.85, marginTop: '8px' }}>This is your most profitable time slot - concentrate trading activity here</p>
+                              </div>
+                            </div>
+
+                            {/* WORST TIME TO AVOID - WARNING CALLOUT */}
+                            <div style={{ padding: '20px', borderRadius: '10px', backgroundColor: '#ef4444', border: '3px solid #dc2626', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                              <div style={{ color: '#ffffff', textAlign: 'center' }}>
+                                <p style={{ fontSize: '12px', fontWeight: 'bold', opacity: 0.9, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>⚠️ AVOID THIS TIME SLOT</p>
+                                <p style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '4px' }}>{worstPeriodInfo.day} at {worstPeriodInfo.time}</p>
+                                <p style={{ fontSize: '13px', opacity: 0.95 }}>P&L: ₹{bottomPeriods[0].pnl.toLocaleString()} | Win Rate: {bottomPeriods[0].winrate.toFixed(1)}% | {bottomPeriods[0].trades} trades</p>
+                                <p style={{ fontSize: '11px', opacity: 0.85, marginTop: '8px' }}>This time slot consistently underperforms - skip trading or use reduced position sizes</p>
+                              </div>
+                            </div>
                             {/* SECTION 1: Key Performance Metrics */}
                             <div style={{ padding: '16px', borderRadius: '8px', backgroundColor: darkMode ? '#374151' : '#f0f9ff', border: `1px solid ${darkMode ? '#4b5563' : '#bfdbfe'}` }}>
                               <p style={{ fontSize: '12px', fontWeight: 'bold', color: darkMode ? '#93c5fd' : '#1e40af', marginBottom: '12px', textTransform: 'uppercase' }}>📈 Overall Performance Metrics</p>
@@ -3395,16 +3425,16 @@ TIME SLOT ANALYSIS
                                   </li>
                                 )}
                                 <li style={{ padding: '10px', backgroundColor: darkMode ? '#1e3a8a' : '#dbeafe', borderRadius: '4px', border: '1px solid #3b82f6' }}>
-                                  <span style={{ fontWeight: 'bold', color: '#0284c7' }}>📊 Avoid Red Zones:</span> Worst period ({bottomPeriods[0].period}) loses ₹{Math.abs(bottomPeriods[0].pnl).toLocaleString()}. Skip or reduce exposure during this window.
+                                  <span style={{ fontWeight: 'bold', color: '#0284c7' }}>📊 Avoid Red Zones:</span> Skip {worstPeriodInfo.day} at {worstPeriodInfo.time} - loses ₹{Math.abs(bottomPeriods[0].pnl).toLocaleString()}. Reduce position sizes or avoid trading entirely during this window.
                                 </li>
                                 <li style={{ padding: '10px', backgroundColor: darkMode ? '#1e3a8a' : '#dbeafe', borderRadius: '4px', border: '1px solid #3b82f6' }}>
-                                  <span style={{ fontWeight: 'bold', color: '#0284c7' }}>🎯 Optimize Focus:</span> P&L variance (₹{pnlRange.toLocaleString()}) indicates concentrated profits. Identify common factors (volatility, liquidity, news timing) in green periods.
+                                  <span style={{ fontWeight: 'bold', color: '#0284c7' }}>🎯 Optimize Focus:</span> P&L variance (₹{pnlRange.toLocaleString()}) indicates concentrated profits. Identify common factors (volatility, liquidity, news timing) in your green trading periods.
                                 </li>
                                 <li style={{ padding: '10px', backgroundColor: darkMode ? '#1e3a8a' : '#dbeafe', borderRadius: '4px', border: '1px solid #3b82f6' }}>
-                                  <span style={{ fontWeight: 'bold', color: '#0284c7' }}>⏱️ Time Discipline:</span> Top period generates {((topPeriods[0].pnl / totalPnL) * 100).toFixed(1)}% of profits. Set trading hours to align with this window for maximum ROI.
+                                  <span style={{ fontWeight: 'bold', color: '#0284c7' }}>⏱️ Time Discipline:</span> Schedule trading activity around {bestPeriodInfo.day} at {bestPeriodInfo.time} which generates {((topPeriods[0].pnl / totalPnL) * 100).toFixed(1)}% of all profits for maximum ROI.
                                 </li>
                                 <li style={{ padding: '10px', backgroundColor: darkMode ? '#1e3a8a' : '#dbeafe', borderRadius: '4px', border: '1px solid #3b82f6' }}>
-                                  <span style={{ fontWeight: 'bold', color: '#0284c7' }}>📈 Monitor Performance:</span> Track pattern stability weekly. If win rate drops below {(overallWinRate * 0.8).toFixed(1)}%, review for market condition changes or strategy drift.
+                                  <span style={{ fontWeight: 'bold', color: '#0284c7' }}>📈 Monitor Performance:</span> Weekly check: if {bestPeriodInfo.day} at {bestPeriodInfo.time} win rate drops below {(topPeriods[0].winrate * 0.8).toFixed(1)}%, review for market condition changes or strategy drift.
                                 </li>
                               </ul>
                             </div>
