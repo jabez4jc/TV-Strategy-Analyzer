@@ -3130,12 +3130,12 @@ TIME SLOT ANALYSIS
 
                       {/* Create organized matrix structure */}
                       <div className="overflow-x-auto">
-                        <table className="w-full border-collapse">
+                        <table className="w-full border-collapse" style={{ minWidth: '900px' }}>
                           <thead>
                             <tr>
-                              <th className={`border ${borderColor} p-2 text-xs font-bold ${textColor} bg-gray-100 dark:bg-gray-700`}>Time</th>
+                              <th className={`border-2 ${borderColor} p-4 text-sm font-bold ${textColor} bg-gray-200 dark:bg-gray-600 w-20`}>Time</th>
                               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                                <th key={day} className={`border ${borderColor} p-2 text-xs font-bold ${textColor} bg-gray-100 dark:bg-gray-700 text-center`}>
+                                <th key={day} className={`border-2 ${borderColor} p-4 text-sm font-bold ${textColor} bg-gray-200 dark:bg-gray-600 text-center flex-1`}>
                                   {day}
                                 </th>
                               ))}
@@ -3168,15 +3168,15 @@ TIME SLOT ANALYSIS
 
                               return sortedTimes.map(time => (
                                 <tr key={time}>
-                                  <td className={`border ${borderColor} p-2 text-xs font-bold ${textColor} bg-gray-100 dark:bg-gray-700 sticky left-0 z-10`}>
+                                  <td className={`border-2 ${borderColor} p-4 text-sm font-bold ${textColor} bg-gray-100 dark:bg-gray-700 sticky left-0 z-10 w-20`}>
                                     {time}
                                   </td>
                                   {days.map(day => {
                                     const slot = timeSlots[time]?.[day];
                                     if (!slot) {
                                       return (
-                                        <td key={`${time}-${day}`} className={`border ${borderColor} p-2 text-center ${darkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
-                                          <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>-</span>
+                                        <td key={`${time}-${day}`} className={`border-2 ${borderColor} p-6 text-center min-h-24 ${darkMode ? 'bg-gray-800' : 'bg-gray-50'} flex-1`}>
+                                          <span className={`text-lg ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>-</span>
                                         </td>
                                       );
                                     }
@@ -3197,31 +3197,37 @@ TIME SLOT ANALYSIS
 
                                     const normalized = (cellValue - minVal) / range;
                                     let bgColor;
+                                    let textCol;
 
                                     if (heatmapMetric === 'pnl') {
                                       // Red for negative, Green for positive
                                       if (slot.pnl >= 0) {
-                                        bgColor = `rgba(34, 197, 94, ${0.2 + normalized * 0.8})`;
-                                        var textCol = normalized > 0.5 ? '#ffffff' : textColor;
+                                        bgColor = `rgba(34, 197, 94, ${0.3 + normalized * 0.7})`;
+                                        textCol = normalized > 0.4 ? '#ffffff' : (darkMode ? '#ffffff' : '#000000');
                                       } else {
-                                        bgColor = `rgba(239, 68, 68, ${0.2 + normalized * 0.8})`;
-                                        var textCol = normalized > 0.5 ? '#ffffff' : textColor;
+                                        bgColor = `rgba(239, 68, 68, ${0.3 + normalized * 0.7})`;
+                                        textCol = normalized > 0.4 ? '#ffffff' : (darkMode ? '#ffffff' : '#000000');
                                       }
                                     } else {
                                       // Blue gradient for other metrics
-                                      bgColor = `rgba(59, 130, 246, ${0.2 + normalized * 0.8})`;
-                                      var textCol = normalized > 0.5 ? '#ffffff' : textColor;
+                                      bgColor = `rgba(59, 130, 246, ${0.3 + normalized * 0.7})`;
+                                      textCol = normalized > 0.4 ? '#ffffff' : (darkMode ? '#ffffff' : '#000000');
                                     }
 
                                     return (
                                       <td
                                         key={`${time}-${day}`}
-                                        className={`border ${borderColor} p-2 text-center cursor-pointer transition-all hover:opacity-80`}
+                                        className={`border-2 ${borderColor} p-6 text-center cursor-pointer transition-all hover:shadow-lg min-h-24 flex items-center justify-center flex-1`}
                                         style={{ backgroundColor: bgColor }}
                                         title={`${slot.period}: P&L ₹${slot.pnl.toLocaleString()} | Win Rate ${slot.winrate}% | Trades: ${slot.trades}`}
                                       >
-                                        <div className="text-xs font-bold" style={{ color: textCol }}>
-                                          {displayValue}
+                                        <div className="text-center">
+                                          <div className="text-lg font-bold" style={{ color: textCol }}>
+                                            {displayValue}
+                                          </div>
+                                          <div className="text-xs mt-1" style={{ color: textCol, opacity: 0.8 }}>
+                                            {slot.trades} trade{slot.trades !== 1 ? 's' : ''}
+                                          </div>
                                         </div>
                                       </td>
                                     );
