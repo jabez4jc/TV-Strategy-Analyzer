@@ -17,6 +17,7 @@ const ModernTradingAnalyzer = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [expandedRows, setExpandedRows] = useState(new Set());
   const [toasts, setToasts] = useState([]);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   const [currentPageProfitability, setCurrentPageProfitability] = useState(1);
   const [currentPageWinRate, setCurrentPageWinRate] = useState(1);
   const [currentPageProfitFactor, setCurrentPageProfitFactor] = useState(1);
@@ -984,7 +985,11 @@ TIME SLOT ANALYSIS
             >
               {darkMode ? <Sun size={20} /> : <Moon size={20} />}
             </button>
-            <button className={`p-2 rounded-lg hover:${darkMode ? 'bg-gray-700' : 'bg-gray-100'} transition-colors`}>
+            <button
+              onClick={() => setShowHelpModal(true)}
+              className={`p-2 rounded-lg hover:${darkMode ? 'bg-gray-700' : 'bg-gray-100'} transition-colors`}
+              title="Help & Guide"
+            >
               <HelpCircle size={20} />
             </button>
             <button className={`p-2 rounded-lg hover:${darkMode ? 'bg-gray-700' : 'bg-gray-100'} transition-colors`}>
@@ -1940,6 +1945,202 @@ TIME SLOT ANALYSIS
           )}
         </main>
       </div>
+
+      {/* Help Modal */}
+      {showHelpModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className={`${cardBg} rounded-lg shadow-2xl max-w-4xl w-full my-8 ${darkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+            {/* Modal Header */}
+            <div className={`flex items-center justify-between p-6 border-b ${borderColor}`}>
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                📚 How to Use TradingView Strategy Analyzer
+              </h2>
+              <button
+                onClick={() => setShowHelpModal(false)}
+                className={`p-2 rounded-lg hover:${darkMode ? 'bg-gray-700' : 'bg-gray-100'} transition-colors`}
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 max-h-[70vh] overflow-y-auto space-y-6">
+
+              {/* Getting Started */}
+              <section>
+                <h3 className="text-xl font-bold mb-3 flex items-center gap-2">
+                  <Upload size={20} />
+                  Getting Started
+                </h3>
+                <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                  <p className="mb-3">1. <strong>Upload Your CSV File</strong>: Click the "Choose CSV File" button to select your TradingView strategy export</p>
+                  <p className="mb-3">2. <strong>Wait for Analysis</strong>: The application automatically processes your data and performs comprehensive analysis</p>
+                  <p>3. <strong>View Results</strong>: Browse through different analysis tabs to explore your trading performance</p>
+                </div>
+              </section>
+
+              {/* CSV Format */}
+              <section>
+                <h3 className="text-xl font-bold mb-3 flex items-center gap-2">
+                  <FileText size={20} />
+                  CSV File Format Requirements
+                </h3>
+                <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'} space-y-3`}>
+                  <p>Your TradingView CSV export should contain the following columns:</p>
+                  <ul className="list-disc list-inside space-y-1 text-sm">
+                    <li><strong>Trade #</strong>: Unique identifier for each trade</li>
+                    <li><strong>Type</strong>: "Entry" or "Exit" to identify trade phases</li>
+                    <li><strong>Date/Time</strong>: Timestamp of the trade</li>
+                    <li><strong>Net P&L INR</strong>: Profit/Loss in your currency</li>
+                  </ul>
+                  <p className="text-xs mt-3">Note: Each trade must have both an Entry and Exit record with matching trade numbers</p>
+                </div>
+              </section>
+
+              {/* Configuration Options */}
+              <section>
+                <h3 className="text-xl font-bold mb-3 flex items-center gap-2">
+                  <Settings size={20} />
+                  Configuration Options
+                </h3>
+                <div className={`space-y-3`}>
+                  <div className={`p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                    <p className="font-semibold mb-1">📊 Analysis Type</p>
+                    <p className="text-sm">Choose how to analyze your trades:</p>
+                    <ul className="text-sm list-disc list-inside mt-1">
+                      <li><strong>Entry→Exit Combo</strong>: Combines entry and exit times for specific combinations</li>
+                      <li><strong>Entry Time</strong>: Analyzes performance by entry time only</li>
+                      <li><strong>Exit Time</strong>: Analyzes performance by exit time only</li>
+                    </ul>
+                  </div>
+                  <div className={`p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                    <p className="font-semibold mb-1">⏱️ Interval (minutes)</p>
+                    <p className="text-sm">Select time bucket size: <strong>5m, 15m, 30m, or 60m</strong> - smaller intervals = more detailed analysis</p>
+                  </div>
+                  <div className={`p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                    <p className="font-semibold mb-1">📈 Show Results</p>
+                    <p className="text-sm">Filter how many top results to display: Top 10, 15, 25, 50, 100, or All results</p>
+                  </div>
+                  <div className={`p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                    <p className="font-semibold mb-1">📅 Intraday Only</p>
+                    <p className="text-sm">Check this to include only trades that enter and exit on the same day</p>
+                  </div>
+                </div>
+              </section>
+
+              {/* Navigation Tabs */}
+              <section>
+                <h3 className="text-xl font-bold mb-3 flex items-center gap-2">
+                  <BarChart3 size={20} />
+                  Analysis Tabs Explained
+                </h3>
+                <div className={`space-y-3`}>
+                  <div className={`p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                    <p className="font-semibold mb-1">👀 Overview</p>
+                    <p className="text-sm">Summary statistics including total trades, overall win rate, and total P&L</p>
+                  </div>
+                  <div className={`p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                    <p className="font-semibold mb-1">💰 By Profitability</p>
+                    <p className="text-sm">Most profitable time slots ranked by total P&L with weekly/monthly breakdown</p>
+                  </div>
+                  <div className={`p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                    <p className="font-semibold mb-1">🎯 By Win Rate</p>
+                    <p className="text-sm">Highest win rate time slots with consistency metrics and performance history</p>
+                  </div>
+                  <div className={`p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                    <p className="font-semibold mb-1">⚡ By Profit Factor</p>
+                    <p className="text-sm">Best profit factor (gross profit/gross loss ratio) time slots with detailed metrics</p>
+                  </div>
+                  <div className={`p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                    <p className="font-semibold mb-1">📊 Advanced Analytics</p>
+                    <p className="text-sm">Interactive charts, heatmaps, and comprehensive visual analysis of trading performance</p>
+                  </div>
+                </div>
+              </section>
+
+              {/* Expandable Rows */}
+              <section>
+                <h3 className="text-xl font-bold mb-3 flex items-center gap-2">
+                  <ChevronRight size={20} />
+                  Expandable Row Details
+                </h3>
+                <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                  <p className="mb-2">Each result row in the Profitability, Win Rate, and Profit Factor tabs has a <strong>"Show"</strong> button:</p>
+                  <ul className="list-disc list-inside space-y-2 text-sm mt-3">
+                    <li>Click <strong>"Show"</strong> to expand and view weekly/monthly performance breakdown</li>
+                    <li>View consistency data: How your trades performed across different weeks and months</li>
+                    <li>Click <strong>"Hide"</strong> to collapse the details</li>
+                  </ul>
+                </div>
+              </section>
+
+              {/* Pagination */}
+              <section>
+                <h3 className="text-xl font-bold mb-3 flex items-center gap-2">
+                  <Table size={20} />
+                  Pagination & Navigation
+                </h3>
+                <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                  <p className="mb-2">Results are displayed <strong>15 records per page</strong>:</p>
+                  <ul className="list-disc list-inside space-y-1 text-sm mt-3">
+                    <li>Use <strong>Previous/Next</strong> buttons to navigate between pages</li>
+                    <li>Click <strong>numbered buttons</strong> to jump to a specific page</li>
+                    <li>See current page indicator showing "Page X of Y"</li>
+                  </ul>
+                </div>
+              </section>
+
+              {/* Export Features */}
+              <section>
+                <h3 className="text-xl font-bold mb-3 flex items-center gap-2">
+                  <Download size={20} />
+                  Export Your Results
+                </h3>
+                <div className={`space-y-2`}>
+                  <div className={`p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                    <p className="font-semibold mb-1">📄 Export CSV</p>
+                    <p className="text-sm">Download analysis results as a spreadsheet for further analysis in Excel or Google Sheets</p>
+                  </div>
+                  <div className={`p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                    <p className="font-semibold mb-1">📋 Export TXT</p>
+                    <p className="text-sm">Download results as plain text format for documentation or sharing</p>
+                  </div>
+                </div>
+              </section>
+
+              {/* Tips & Best Practices */}
+              <section>
+                <h3 className="text-xl font-bold mb-3 flex items-center gap-2">
+                  <CheckCircle size={20} />
+                  Tips & Best Practices
+                </h3>
+                <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                  <ul className="list-disc list-inside space-y-2 text-sm">
+                    <li><strong>Start with Profitability:</strong> See which time slots generate the most profit</li>
+                    <li><strong>Check Win Rate:</strong> Verify consistency - high win rate = reliable strategy</li>
+                    <li><strong>Use Profit Factor:</strong> Identify risk-reward efficiency of different times</li>
+                    <li><strong>Review Weekly/Monthly Data:</strong> Click "Show" to see if patterns are consistent</li>
+                    <li><strong>Try Different Intervals:</strong> Experiment with 5m, 15m, 30m, 60m to find optimal timeframes</li>
+                    <li><strong>Use Filters Wisely:</strong> Show Results filter helps focus on top opportunities</li>
+                    <li><strong>Dark Mode:</strong> Click the moon icon for comfortable late-night analysis</li>
+                  </ul>
+                </div>
+              </section>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className={`flex justify-end gap-2 p-6 border-t ${borderColor}`}>
+              <button
+                onClick={() => setShowHelpModal(false)}
+                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:opacity-90 transition-opacity"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes slide-in {
