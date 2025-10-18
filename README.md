@@ -47,10 +47,10 @@ The TradingView Strategy Analyzer is a powerful web application that processes C
 1. Fork or clone this repository
 2. Push to your Git provider (GitHub, GitLab, etc.)
 3. In Coolify, create new application from Git repository
-4. Coolify auto-detects Docker configuration and deploys
+4. Configure as Nixpacks with static site settings
 5. Access your deployed application via provided URL
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed deployment instructions.
+See [STATIC_DEPLOYMENT.md](STATIC_DEPLOYMENT.md) for detailed deployment instructions.
 
 ### Local Development
 
@@ -100,13 +100,11 @@ TV Strategy Analyzer/
 │   ├── index.js                     # React entry point
 │   ├── index.css                    # Global styles and Tailwind utilities
 │   └── TradingViewStrategyAnalyzer.js # Core analyzer component (1,330 lines)
-├── Dockerfile                       # Multi-stage Docker build configuration
-├── nginx.conf                       # Production web server configuration
 ├── package.json                     # Dependencies and build scripts
-├── .dockerignore                    # Docker build exclusions
+├── package-lock.json                # Dependency lock file
 ├── .gitignore                       # Git exclusions
 ├── README.md                        # This documentation file
-├── DEPLOYMENT.md                    # Coolify deployment guide
+├── STATIC_DEPLOYMENT.md             # Coolify deployment guide
 └── .git/                           # Git repository data
 ```
 
