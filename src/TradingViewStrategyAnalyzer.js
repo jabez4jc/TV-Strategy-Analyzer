@@ -3376,6 +3376,125 @@ TIME SLOT ANALYSIS
                           )}
                         </div>
                       </div>
+
+                      {/* Detailed Heatmap Analysis Summary */}
+                      <div style={{ marginTop: '24px', padding: '20px', borderRadius: '8px', backgroundColor: darkMode ? '#1f2937' : '#f9fafb', border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}` }}>
+                        <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937', marginBottom: '16px' }}>📊 Detailed Heatmap Analysis</h3>
+
+                        {(() => {
+                          const stats = {};
+                          let totalPnL = 0;
+                          let totalTrades = 0;
+                          let profitablePeriods = 0;
+                          let totalWins = 0;
+                          let maxPnL = -Infinity;
+                          let minPnL = Infinity;
+
+                          heatmapResults.data.forEach(slot => {
+                            totalPnL += slot.pnl;
+                            totalTrades += slot.trades;
+                            if (slot.pnl >= 0) profitablePeriods++;
+                            totalWins += (slot.winrate / 100) * slot.trades;
+                            maxPnL = Math.max(maxPnL, slot.pnl);
+                            minPnL = Math.min(minPnL, slot.pnl);
+                          });
+
+                          const avgPnL = heatmapResults.data.length > 0 ? totalPnL / heatmapResults.data.length : 0;
+                          const profitablePercentage = heatmapResults.data.length > 0 ? (profitablePeriods / heatmapResults.data.length) * 100 : 0;
+                          const overallWinRate = totalTrades > 0 ? (totalWins / totalTrades) * 100 : 0;
+                          const pnlRange = maxPnL - minPnL;
+
+                          return (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+                              {/* Key Statistics */}
+                              <div style={{ padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#374151' : '#f0f9ff' }}>
+                                <p style={{ fontSize: '11px', fontWeight: 'bold', color: darkMode ? '#9ca3af' : '#1e40af', marginBottom: '8px' }}>KEY STATISTICS</p>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' }}>
+                                  <div>
+                                    <p style={{ color: darkMode ? '#9ca3af' : '#666' }}>Total P&L</p>
+                                    <p style={{ fontSize: '16px', fontWeight: 'bold', color: totalPnL >= 0 ? '#22c55e' : '#ef4444' }}>₹{totalPnL.toLocaleString()}</p>
+                                  </div>
+                                  <div>
+                                    <p style={{ color: darkMode ? '#9ca3af' : '#666' }}>Avg per Slot</p>
+                                    <p style={{ fontSize: '16px', fontWeight: 'bold', color: avgPnL >= 0 ? '#22c55e' : '#ef4444' }}>₹{avgPnL.toLocaleString()}</p>
+                                  </div>
+                                  <div>
+                                    <p style={{ color: darkMode ? '#9ca3af' : '#666' }}>Total Trades</p>
+                                    <p style={{ fontSize: '16px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{totalTrades}</p>
+                                  </div>
+                                  <div>
+                                    <p style={{ color: darkMode ? '#9ca3af' : '#666' }}>Overall Win Rate</p>
+                                    <p style={{ fontSize: '16px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{overallWinRate.toFixed(1)}%</p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Performance Breakdown */}
+                              <div style={{ padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#374151' : '#fef2f2' }}>
+                                <p style={{ fontSize: '11px', fontWeight: 'bold', color: darkMode ? '#9ca3af' : '#7f1d1d', marginBottom: '8px' }}>PERFORMANCE BREAKDOWN</p>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' }}>
+                                  <div>
+                                    <p style={{ color: darkMode ? '#9ca3af' : '#666' }}>Profitable Periods</p>
+                                    <p style={{ fontSize: '16px', fontWeight: 'bold', color: '#22c55e' }}>{profitablePeriods}/{heatmapResults.data.length} ({profitablePercentage.toFixed(1)}%)</p>
+                                  </div>
+                                  <div>
+                                    <p style={{ color: darkMode ? '#9ca3af' : '#666' }}>P&L Range</p>
+                                    <p style={{ fontSize: '14px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>₹{minPnL.toLocaleString()} → ₹{maxPnL.toLocaleString()}</p>
+                                  </div>
+                                  <div>
+                                    <p style={{ color: darkMode ? '#9ca3af' : '#666' }}>Best Time Slot</p>
+                                    <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#22c55e' }}>{heatmapResults.data.reduce((max, curr) => curr.pnl > max.pnl ? curr : max).period}</p>
+                                  </div>
+                                  <div>
+                                    <p style={{ color: darkMode ? '#9ca3af' : '#666' }}>Worst Time Slot</p>
+                                    <p style={{ fontSize: '14px', fontWeight: 'bold', color: '#ef4444' }}>{heatmapResults.data.reduce((min, curr) => curr.pnl < min.pnl ? curr : min).period}</p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Trading Recommendations */}
+                              <div style={{ gridColumn: '1 / -1', padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#374151' : '#f0fdf4' }}>
+                                <p style={{ fontSize: '11px', fontWeight: 'bold', color: darkMode ? '#9ca3af' : '#166534', marginBottom: '8px' }}>💡 KEY INSIGHTS & RECOMMENDATIONS</p>
+                                <div style={{ fontSize: '12px', lineHeight: '1.6', color: darkMode ? '#e5e7eb' : '#1f2937', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                  {profitablePercentage > 70 ? (
+                                    <div>
+                                      <p style={{ fontWeight: 'bold', color: '#22c55e', marginBottom: '4px' }}>✅ Excellent Time Selection</p>
+                                      <p>Your trading is concentrated in highly profitable periods ({profitablePercentage.toFixed(0)}% positive). Maintain this discipline and continue trading during identified green zones.</p>
+                                    </div>
+                                  ) : profitablePercentage > 50 ? (
+                                    <div>
+                                      <p style={{ fontWeight: 'bold', color: '#f59e0b', marginBottom: '4px' }}>⚠️ Mixed Performance</p>
+                                      <p>About half your time slots are profitable ({profitablePercentage.toFixed(0)}%). Focus on high-probability periods and reduce activity in underperforming slots.</p>
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      <p style={{ fontWeight: 'bold', color: '#ef4444', marginBottom: '4px' }}>🔴 Review Strategy</p>
+                                      <p>Less than half your periods are profitable ({profitablePercentage.toFixed(0)}%). Consider restricting trading to only the best-performing time slots.</p>
+                                    </div>
+                                  )}
+
+                                  <div>
+                                    <p style={{ fontWeight: 'bold', color: '#3b82f6', marginBottom: '4px' }}>📈 Optimization Opportunity</p>
+                                    <p>P&L varies from ₹{minPnL.toLocaleString()} to ₹{maxPnL.toLocaleString()} across periods. A ₹{pnlRange.toLocaleString()} range suggests significant potential to concentrate activity in higher-performing slots.</p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Action Items */}
+                              <div style={{ gridColumn: '1 / -1', padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#1e3a8a' : '#eff6ff' }}>
+                                <p style={{ fontSize: '11px', fontWeight: 'bold', color: darkMode ? '#93c5fd' : '#1e40af', marginBottom: '8px' }}>✅ ACTION ITEMS</p>
+                                <ul style={{ fontSize: '12px', lineHeight: '1.8', color: darkMode ? '#e5e7eb' : '#1f2937', marginLeft: '16px' }}>
+                                  <li>Trade more aggressively during {heatmapResults.data.reduce((max, curr) => curr.pnl > max.pnl ? curr : max).period} (your best performing period)</li>
+                                  <li>Reduce position sizes or skip trading during {heatmapResults.data.reduce((min, curr) => curr.pnl < min.pnl ? curr : min).period}</li>
+                                  <li>Use {heatmapResolution}-minute resolution to identify micro-patterns within your preferred time blocks</li>
+                                  <li>Monitor consistency: Track if performance patterns remain stable over time</li>
+                                  <li>Consider market conditions: Analyze if performance changes during different market cycles or volatility periods</li>
+                                </ul>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </div>
                   ) : (
                     <div className={`${cardBg} rounded-lg p-8 text-center border ${borderColor}`}>
