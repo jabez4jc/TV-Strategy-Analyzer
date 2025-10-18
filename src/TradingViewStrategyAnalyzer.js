@@ -3128,115 +3128,118 @@ TIME SLOT ANALYSIS
                       <h3 className={`text-lg font-bold ${textColor} mb-2`}>Performance Heatmap ({heatmapMetric === 'pnl' ? '₹ P&L' : heatmapMetric === 'winrate' ? 'Win Rate %' : 'Trade Count'})</h3>
                       <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-4`}>Resolution: {heatmapResolution} minutes • Hover for details</p>
 
-                      {/* Create organized matrix structure */}
+                      {/* Create organized matrix structure using CSS Grid */}
                       <div className="overflow-x-auto">
-                        <table className="w-full border-collapse" style={{ minWidth: '900px' }}>
-                          <thead>
-                            <tr>
-                              <th className={`border-2 ${borderColor} p-4 text-sm font-bold ${textColor} bg-gray-200 dark:bg-gray-600 w-20`}>Time</th>
-                              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                                <th key={day} className={`border-2 ${borderColor} p-4 text-sm font-bold ${textColor} bg-gray-200 dark:bg-gray-600 text-center flex-1`}>
-                                  {day}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(() => {
-                              // Group data by time slot
-                              const timeSlots = {};
-                              heatmapResults.data.forEach(slot => {
-                                const timePart = slot.period.split('-')[1]; // Extract time from "Day-Time"
-                                if (!timeSlots[timePart]) timeSlots[timePart] = {};
-                                const dayPart = slot.period.split('-')[0]; // Extract day
-                                timeSlots[timePart][dayPart] = slot;
-                              });
+                        <div style={{ display: 'grid', gridTemplateColumns: '100px repeat(7, 1fr)', gap: '2px', backgroundColor: darkMode ? '#374151' : '#e5e7eb', padding: '2px', minWidth: '1000px' }}>
+                          {/* Header Row */}
+                          <div style={{ backgroundColor: '#3b82f6', color: '#ffffff', padding: '16px', fontWeight: 'bold', fontSize: '14px', textAlign: 'center' }}>
+                            Time
+                          </div>
+                          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                            <div key={`header-${day}`} style={{ backgroundColor: '#3b82f6', color: '#ffffff', padding: '16px', fontWeight: 'bold', fontSize: '14px', textAlign: 'center' }}>
+                              {day}
+                            </div>
+                          ))}
 
-                              // Get sorted time slots
-                              const sortedTimes = Object.keys(timeSlots).sort();
-                              const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                          {/* Data Rows */}
+                          {(() => {
+                            const timeSlots = {};
+                            heatmapResults.data.forEach(slot => {
+                              const timePart = slot.period.split('-')[1];
+                              if (!timeSlots[timePart]) timeSlots[timePart] = {};
+                              const dayPart = slot.period.split('-')[0];
+                              timeSlots[timePart][dayPart] = slot;
+                            });
 
-                              // Get min/max for color scaling
-                              const allValues = heatmapResults.data.map(s => {
-                                if (heatmapMetric === 'pnl') return Math.abs(s.pnl);
-                                if (heatmapMetric === 'winrate') return s.winrate;
-                                return s.trades;
-                              });
-                              const minVal = Math.min(...allValues);
-                              const maxVal = Math.max(...allValues);
-                              const range = maxVal - minVal || 1;
+                            const sortedTimes = Object.keys(timeSlots).sort();
+                            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-                              return sortedTimes.map(time => (
-                                <tr key={time}>
-                                  <td className={`border-2 ${borderColor} p-4 text-sm font-bold ${textColor} bg-gray-100 dark:bg-gray-700 sticky left-0 z-10 w-20`}>
-                                    {time}
-                                  </td>
-                                  {days.map(day => {
-                                    const slot = timeSlots[time]?.[day];
-                                    if (!slot) {
-                                      return (
-                                        <td key={`${time}-${day}`} className={`border-2 ${borderColor} p-6 text-center min-h-24 ${darkMode ? 'bg-gray-800' : 'bg-gray-50'} flex-1`}>
-                                          <span className={`text-lg ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>-</span>
-                                        </td>
-                                      );
-                                    }
+                            const allValues = heatmapResults.data.map(s => {
+                              if (heatmapMetric === 'pnl') return Math.abs(s.pnl);
+                              if (heatmapMetric === 'winrate') return s.winrate;
+                              return s.trades;
+                            });
+                            const minVal = Math.min(...allValues);
+                            const maxVal = Math.max(...allValues);
+                            const range = maxVal - minVal || 1;
 
-                                    // Calculate color intensity
-                                    let displayValue;
-                                    let cellValue;
-                                    if (heatmapMetric === 'pnl') {
-                                      cellValue = Math.abs(slot.pnl);
-                                      displayValue = `₹${slot.pnl.toLocaleString()}`;
-                                    } else if (heatmapMetric === 'winrate') {
-                                      cellValue = slot.winrate;
-                                      displayValue = `${slot.winrate.toFixed(1)}%`;
-                                    } else {
-                                      cellValue = slot.trades;
-                                      displayValue = `${slot.trades}`;
-                                    }
+                            return sortedTimes.map(time => [
+                              <div key={`time-${time}`} style={{ backgroundColor: darkMode ? '#374151' : '#e5e7eb', color: darkMode ? '#e5e7eb' : '#1f2937', padding: '16px', fontWeight: 'bold', fontSize: '13px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {time}
+                              </div>,
+                              ...days.map(day => {
+                                const slot = timeSlots[time]?.[day];
 
-                                    const normalized = (cellValue - minVal) / range;
-                                    let bgColor;
-                                    let textCol;
+                                if (!slot) {
+                                  return (
+                                    <div key={`${time}-${day}`} style={{ backgroundColor: darkMode ? '#1f2937' : '#f9fafb', padding: '24px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100px', fontSize: '18px', color: darkMode ? '#6b7280' : '#9ca3af' }}>
+                                      -
+                                    </div>
+                                  );
+                                }
 
-                                    if (heatmapMetric === 'pnl') {
-                                      // Red for negative, Green for positive
-                                      if (slot.pnl >= 0) {
-                                        bgColor = `rgba(34, 197, 94, ${0.3 + normalized * 0.7})`;
-                                        textCol = normalized > 0.4 ? '#ffffff' : (darkMode ? '#ffffff' : '#000000');
-                                      } else {
-                                        bgColor = `rgba(239, 68, 68, ${0.3 + normalized * 0.7})`;
-                                        textCol = normalized > 0.4 ? '#ffffff' : (darkMode ? '#ffffff' : '#000000');
-                                      }
-                                    } else {
-                                      // Blue gradient for other metrics
-                                      bgColor = `rgba(59, 130, 246, ${0.3 + normalized * 0.7})`;
-                                      textCol = normalized > 0.4 ? '#ffffff' : (darkMode ? '#ffffff' : '#000000');
-                                    }
+                                let displayValue;
+                                let cellValue;
+                                if (heatmapMetric === 'pnl') {
+                                  cellValue = Math.abs(slot.pnl);
+                                  displayValue = `₹${slot.pnl.toLocaleString()}`;
+                                } else if (heatmapMetric === 'winrate') {
+                                  cellValue = slot.winrate;
+                                  displayValue = `${slot.winrate.toFixed(1)}%`;
+                                } else {
+                                  cellValue = slot.trades;
+                                  displayValue = `${slot.trades}`;
+                                }
 
-                                    return (
-                                      <td
-                                        key={`${time}-${day}`}
-                                        className={`border-2 ${borderColor} p-6 text-center cursor-pointer transition-all hover:shadow-lg min-h-24 flex items-center justify-center flex-1`}
-                                        style={{ backgroundColor: bgColor }}
-                                        title={`${slot.period}: P&L ₹${slot.pnl.toLocaleString()} | Win Rate ${slot.winrate}% | Trades: ${slot.trades}`}
-                                      >
-                                        <div className="text-center">
-                                          <div className="text-lg font-bold" style={{ color: textCol }}>
-                                            {displayValue}
-                                          </div>
-                                          <div className="text-xs mt-1" style={{ color: textCol, opacity: 0.8 }}>
-                                            {slot.trades} trade{slot.trades !== 1 ? 's' : ''}
-                                          </div>
-                                        </div>
-                                      </td>
-                                    );
-                                  })}
-                                </tr>
-                              ));
-                            })()}
-                          </tbody>
-                        </table>
+                                const normalized = (cellValue - minVal) / range;
+                                let bgColor;
+                                let textCol;
+
+                                if (heatmapMetric === 'pnl') {
+                                  if (slot.pnl >= 0) {
+                                    bgColor = `rgba(34, 197, 94, ${0.3 + normalized * 0.7})`;
+                                    textCol = normalized > 0.4 ? '#ffffff' : '#000000';
+                                  } else {
+                                    bgColor = `rgba(239, 68, 68, ${0.3 + normalized * 0.7})`;
+                                    textCol = normalized > 0.4 ? '#ffffff' : '#000000';
+                                  }
+                                } else {
+                                  bgColor = `rgba(59, 130, 246, ${0.3 + normalized * 0.7})`;
+                                  textCol = normalized > 0.4 ? '#ffffff' : '#000000';
+                                }
+
+                                return (
+                                  <div
+                                    key={`${time}-${day}`}
+                                    style={{
+                                      backgroundColor: bgColor,
+                                      padding: '24px',
+                                      textAlign: 'center',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      minHeight: '100px',
+                                      cursor: 'pointer',
+                                      transition: 'opacity 0.2s'
+                                    }}
+                                    title={`${slot.period}: P&L ₹${slot.pnl.toLocaleString()} | Win Rate ${slot.winrate}% | Trades: ${slot.trades}`}
+                                    onMouseEnter={(e) => e.target.style.opacity = '0.8'}
+                                    onMouseLeave={(e) => e.target.style.opacity = '1'}
+                                  >
+                                    <div style={{ textAlign: 'center' }}>
+                                      <div style={{ fontSize: '18px', fontWeight: 'bold', color: textCol }}>
+                                        {displayValue}
+                                      </div>
+                                      <div style={{ fontSize: '12px', marginTop: '8px', color: textCol, opacity: 0.8 }}>
+                                        {slot.trades} trade{slot.trades !== 1 ? 's' : ''}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            ]);
+                          })().flat()}
+                        </div>
                       </div>
 
                       {/* Legend */}
