@@ -1869,6 +1869,103 @@ TIME SLOT ANALYSIS
                     </div>
                   </div>
 
+                  {/* Heatmap Summary & Recommendations */}
+                  {heatmapResults && (
+                    <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                      <h3 className={`text-lg font-bold ${textColor} mb-4`}>⏰ Time-Based Trading Insights</h3>
+                      <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-4`}>Recommendations based on your trading patterns across different times of day</p>
+
+                      <div className="grid grid-cols-1 gap-4">
+                        {(() => {
+                          // Group heatmap data by time slot and analyze
+                          const timeAnalysis = {};
+                          heatmapResults.data.forEach(slot => {
+                            const timePart = slot.period.split('-')[1];
+                            if (!timeAnalysis[timePart]) {
+                              timeAnalysis[timePart] = { pnls: [], winrates: [], trades: 0 };
+                            }
+                            timeAnalysis[timePart].pnls.push(slot.pnl);
+                            timeAnalysis[timePart].winrates.push(slot.winrate);
+                            timeAnalysis[timePart].trades += slot.trades;
+                          });
+
+                          // Analyze each time slot
+                          const recommendations = Object.entries(timeAnalysis)
+                            .map(([time, data]) => {
+                              const avgPnL = data.pnls.reduce((a, b) => a + b, 0) / data.pnls.length;
+                              const avgWinRate = data.winrates.reduce((a, b) => a + b, 0) / data.winrates.length;
+                              const isPositive = avgPnL >= 0;
+                              const intensity = Math.abs(avgPnL);
+
+                              return { time, avgPnL, avgWinRate, trades: data.trades, intensity, isPositive };
+                            })
+                            .sort((a, b) => b.intensity - a.intensity);
+
+                          // Get best and worst times
+                          const bestTimes = recommendations.filter(r => r.isPositive).slice(0, 2);
+                          const worstTimes = recommendations.filter(r => !r.isPositive).slice(0, 2);
+
+                          return (
+                            <>
+                              {bestTimes.length > 0 && (
+                                <div className={`${darkMode ? 'bg-green-900 bg-opacity-20' : 'bg-green-50'} border ${darkMode ? 'border-green-700' : 'border-green-200'} rounded-lg p-4`}>
+                                  <h4 className={`font-bold ${darkMode ? 'text-green-400' : 'text-green-700'} mb-3`}>✅ Best Times to Trade</h4>
+                                  <div className="space-y-2">
+                                    {bestTimes.map((rec, idx) => (
+                                      <div key={idx} className={`text-sm p-2 rounded ${darkMode ? 'bg-green-800 bg-opacity-30' : 'bg-green-100'}`}>
+                                        <div className="flex justify-between items-center">
+                                          <span className="font-semibold">{rec.time}</span>
+                                          <div className="flex gap-4">
+                                            <span className={`${darkMode ? 'text-green-400' : 'text-green-600'} font-bold`}>₹{rec.avgPnL.toLocaleString()}</span>
+                                            <span className={`${darkMode ? 'text-green-400' : 'text-green-600'}`}>{rec.avgWinRate.toFixed(1)}% Win</span>
+                                            <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{rec.trades} trades</span>
+                                          </div>
+                                        </div>
+                                        <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>💡 Trade more aggressively during this period - high profit potential</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {worstTimes.length > 0 && (
+                                <div className={`${darkMode ? 'bg-red-900 bg-opacity-20' : 'bg-red-50'} border ${darkMode ? 'border-red-700' : 'border-red-200'} rounded-lg p-4`}>
+                                  <h4 className={`font-bold ${darkMode ? 'text-red-400' : 'text-red-700'} mb-3`}>⚠️ Times to Avoid or Be Cautious</h4>
+                                  <div className="space-y-2">
+                                    {worstTimes.map((rec, idx) => (
+                                      <div key={idx} className={`text-sm p-2 rounded ${darkMode ? 'bg-red-800 bg-opacity-30' : 'bg-red-100'}`}>
+                                        <div className="flex justify-between items-center">
+                                          <span className="font-semibold">{rec.time}</span>
+                                          <div className="flex gap-4">
+                                            <span className={`${darkMode ? 'text-red-400' : 'text-red-600'} font-bold`}>₹{rec.avgPnL.toLocaleString()}</span>
+                                            <span className={`${darkMode ? 'text-red-400' : 'text-red-600'}`}>{rec.avgWinRate.toFixed(1)}% Win</span>
+                                            <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{rec.trades} trades</span>
+                                          </div>
+                                        </div>
+                                        <p className={`text-xs mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>💡 Either skip trading during this period or reduce position size - high loss frequency</p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {recommendations.length > 4 && (
+                                <div className={`${darkMode ? 'bg-blue-900 bg-opacity-20' : 'bg-blue-50'} border ${darkMode ? 'border-blue-700' : 'border-blue-200'} rounded-lg p-4`}>
+                                  <h4 className={`font-bold ${darkMode ? 'text-blue-400' : 'text-blue-700'} mb-2`}>📊 Overall Time-Based Strategy</h4>
+                                  <p className={`text-sm ${darkMode ? 'text-blue-300' : 'text-blue-900'}`}>
+                                    Focus your trading activity during {bestTimes[0]?.time || 'peak hours'} (your best performing time slot).
+                                    Consider using smaller position sizes or skipping trades during {worstTimes[0]?.time || 'low-performance periods'}.
+                                    This pattern-based approach can significantly improve your risk-adjusted returns.
+                                  </p>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Equity Curve */}
                   <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
                     <h3 className={`text-lg font-bold ${textColor} mb-4`}>Equity Curve</h3>
@@ -3243,37 +3340,37 @@ TIME SLOT ANALYSIS
                       </div>
 
                       {/* Legend */}
-                      <div className="mt-6 p-4 rounded-lg bg-gray-100 dark:bg-gray-700">
-                        <p className={`text-xs font-bold ${textColor} mb-3`}>Legend:</p>
-                        <div className="grid grid-cols-3 gap-4">
+                      <div style={{ marginTop: '24px', padding: '16px', borderRadius: '8px', backgroundColor: darkMode ? '#374151' : '#f3f4f6' }}>
+                        <p style={{ fontSize: '12px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937', marginBottom: '12px' }}>Legend:</p>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
                           {heatmapMetric === 'pnl' ? (
                             <>
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded" style={{ backgroundColor: 'rgba(34, 197, 94, 1)' }}></div>
-                                <span className={`text-xs ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Highly Profitable</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ width: '24px', height: '24px', borderRadius: '4px', backgroundColor: 'rgba(34, 197, 94, 1)' }}></div>
+                                <span style={{ fontSize: '12px', color: darkMode ? '#e5e7eb' : '#1f2937' }}>Highly Profitable</span>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded" style={{ backgroundColor: 'rgba(239, 68, 68, 1)' }}></div>
-                                <span className={`text-xs ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Highly Losing</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ width: '24px', height: '24px', borderRadius: '4px', backgroundColor: 'rgba(239, 68, 68, 1)' }}></div>
+                                <span style={{ fontSize: '12px', color: darkMode ? '#e5e7eb' : '#1f2937' }}>Highly Losing</span>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded" style={{ backgroundColor: 'rgba(209, 213, 219, 0.5)' }}></div>
-                                <span className={`text-xs ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>No Data</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ width: '24px', height: '24px', borderRadius: '4px', backgroundColor: 'rgba(209, 213, 219, 0.5)' }}></div>
+                                <span style={{ fontSize: '12px', color: darkMode ? '#e5e7eb' : '#1f2937' }}>No Data</span>
                               </div>
                             </>
                           ) : (
                             <>
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded" style={{ backgroundColor: 'rgba(59, 130, 246, 1)' }}></div>
-                                <span className={`text-xs ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>High Value</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ width: '24px', height: '24px', borderRadius: '4px', backgroundColor: 'rgba(59, 130, 246, 1)' }}></div>
+                                <span style={{ fontSize: '12px', color: darkMode ? '#e5e7eb' : '#1f2937' }}>High Value</span>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded" style={{ backgroundColor: 'rgba(59, 130, 246, 0.3)' }}></div>
-                                <span className={`text-xs ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Low Value</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ width: '24px', height: '24px', borderRadius: '4px', backgroundColor: 'rgba(59, 130, 246, 0.3)' }}></div>
+                                <span style={{ fontSize: '12px', color: darkMode ? '#e5e7eb' : '#1f2937' }}>Low Value</span>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded" style={{ backgroundColor: 'rgba(209, 213, 219, 0.5)' }}></div>
-                                <span className={`text-xs ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>No Data</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ width: '24px', height: '24px', borderRadius: '4px', backgroundColor: 'rgba(209, 213, 219, 0.5)' }}></div>
+                                <span style={{ fontSize: '12px', color: darkMode ? '#e5e7eb' : '#1f2937' }}>No Data</span>
                               </div>
                             </>
                           )}
