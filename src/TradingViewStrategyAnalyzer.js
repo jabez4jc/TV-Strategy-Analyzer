@@ -22,6 +22,13 @@ const ModernTradingAnalyzer = () => {
   const [currentPageWinRate, setCurrentPageWinRate] = useState(1);
   const [currentPageProfitFactor, setCurrentPageProfitFactor] = useState(1);
 
+  // Multi-Strategy Comparison State
+  const [strategies, setStrategies] = useState([]);
+  const [comparisonMode, setComparisonMode] = useState(false);
+  const [selectedStrategies, setSelectedStrategies] = useState([]);
+  const [dragOverMulti, setDragOverMulti] = useState(false);
+  const [comparisonResults, setComparisonResults] = useState(null);
+
   const addToast = (message, type = 'info') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
@@ -750,6 +757,166 @@ const ModernTradingAnalyzer = () => {
     }
   };
 
+  // Calculate metrics for a single strategy (used in comparison)
+  const calculateStrategyMetrics = (trades) => {
+    if (trades.length === 0) return null;
+
+    const totalPnL = trades.reduce((sum, t) => sum + t.pnl, 0);
+    const winRate = (trades.filter(t => t.pnl > 0).length / trades.length) * 100;
+    const averagePnL = totalPnL / trades.length;
+
+    // Profit Factor
+    const grossProfit = trades.filter(t => t.pnl > 0).reduce((sum, t) => sum + t.pnl, 0);
+    const grossLoss = Math.abs(trades.filter(t => t.pnl < 0).reduce((sum, t) => sum + t.pnl, 0));
+    const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? 1 : 0);
+
+    // Sharpe Ratio (simplified - daily returns)
+    const dailyReturns = {};
+    trades.forEach(trade => {
+      const date = new Date(trade.entryTime).toISOString().split('T')[0];
+      if (!dailyReturns[date]) dailyReturns[date] = 0;
+      dailyReturns[date] += trade.pnl;
+    });
+
+    const dailyReturnValues = Object.values(dailyReturns);
+    const meanReturn = dailyReturnValues.reduce((a, b) => a + b, 0) / dailyReturnValues.length;
+    const variance = dailyReturnValues.reduce((sum, r) => sum + Math.pow(r - meanReturn, 2), 0) / dailyReturnValues.length;
+    const stdDev = Math.sqrt(variance) || 1;
+    const sharpeRatio = Math.round((meanReturn / stdDev) * 100) / 100;
+
+    // Consecutive wins/losses
+    let maxConsecutiveWins = 0;
+    let maxConsecutiveLosses = 0;
+    let currentWins = 0;
+    let currentLosses = 0;
+
+    trades.forEach(trade => {
+      if (trade.pnl > 0) {
+        currentWins++;
+        currentLosses = 0;
+        maxConsecutiveWins = Math.max(maxConsecutiveWins, currentWins);
+      } else if (trade.pnl < 0) {
+        currentLosses++;
+        currentWins = 0;
+        maxConsecutiveLosses = Math.max(maxConsecutiveLosses, currentLosses);
+      } else {
+        currentWins = 0;
+        currentLosses = 0;
+      }
+    });
+
+    // Drawdown
+    let peak = 0;
+    let maxDrawdown = 0;
+    let cumulativePnL = 0;
+
+    trades.forEach(trade => {
+      cumulativePnL += trade.pnl;
+      if (cumulativePnL > peak) {
+        peak = cumulativePnL;
+      }
+      const drawdown = peak - cumulativePnL;
+      maxDrawdown = Math.max(maxDrawdown, drawdown);
+    });
+
+    // Trade duration
+    const durations = trades.map(t => {
+      const start = new Date(t.entryTime).getTime();
+      const end = new Date(t.exitTime).getTime();
+      return (end - start) / (1000 * 60); // in minutes
+    });
+    const avgTradeDuration = durations.reduce((a, b) => a + b, 0) / durations.length;
+
+    return {
+      totalTrades: trades.length,
+      totalPnL: Math.round(totalPnL),
+      winRate: Math.round(winRate * 100) / 100,
+      averagePnL: Math.round(averagePnL * 100) / 100,
+      profitFactor: Math.round(profitFactor * 100) / 100,
+      sharpeRatio: sharpeRatio,
+      maxDrawdown: Math.round(maxDrawdown * 100) / 100,
+      maxConsecutiveWins: maxConsecutiveWins,
+      maxConsecutiveLosses: maxConsecutiveLosses,
+      avgTradeDuration: Math.round(avgTradeDuration * 100) / 100
+    };
+  };
+
+  // Compare multiple strategies
+  const compareStrategies = useCallback(async () => {
+    if (selectedStrategies.length < 2) {
+      addToast('Select at least 2 strategies to compare', 'error');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      const strategyComparisons = [];
+
+      for (const strategyId of selectedStrategies) {
+        const strategy = strategies.find(s => s.id === strategyId);
+        if (!strategy) continue;
+
+        const metrics = calculateStrategyMetrics(strategy.trades);
+        if (metrics) {
+          strategyComparisons.push({
+            id: strategyId,
+            name: strategy.fileInfo.strategyName,
+            symbol: strategy.fileInfo.symbol,
+            metrics: metrics
+          });
+        }
+      }
+
+      if (strategyComparisons.length < 2) {
+        addToast('Could not analyze selected strategies', 'error');
+        return;
+      }
+
+      // Determine best strategies by different metrics
+      const bestByPnL = strategyComparisons.reduce((prev, current) =>
+        (prev.metrics.totalPnL > current.metrics.totalPnL) ? prev : current
+      );
+
+      const bestByWinRate = strategyComparisons.reduce((prev, current) =>
+        (prev.metrics.winRate > current.metrics.winRate) ? prev : current
+      );
+
+      const bestByProfitFactor = strategyComparisons.reduce((prev, current) =>
+        (prev.metrics.profitFactor > current.metrics.profitFactor) ? prev : current
+      );
+
+      const bestBySharpe = strategyComparisons.reduce((prev, current) =>
+        (prev.metrics.sharpeRatio > current.metrics.sharpeRatio) ? prev : current
+      );
+
+      // Sort by profit factor for overall ranking
+      const ranking = [...strategyComparisons].sort((a, b) => b.metrics.profitFactor - a.metrics.profitFactor);
+
+      // Mark strategies as analyzed
+      setStrategies(prev => prev.map(s => ({
+        ...s,
+        analyzed: selectedStrategies.includes(s.id)
+      })));
+
+      // Store comparison results
+      setComparisonResults({
+        strategies: strategyComparisons,
+        bestByPnL,
+        bestByWinRate,
+        bestByProfitFactor,
+        bestBySharpe,
+        ranking
+      });
+
+      addToast(`Comparison complete: ${strategyComparisons.length} strategies analyzed`, 'success');
+
+    } catch (err) {
+      addToast('Error comparing strategies: ' + err.message, 'error');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [strategies, selectedStrategies]);
+
   const handleFileUpload = useCallback(async (event) => {
     const uploadedFile = event.target.files[0];
     if (!uploadedFile) return;
@@ -767,6 +934,96 @@ const ModernTradingAnalyzer = () => {
     } catch (err) {
       addToast('Error reading file: ' + err.message, 'error');
     }
+  }, []);
+
+  // Multi-file upload handler for strategy comparison
+  const handleMultiFileUpload = useCallback(async (event) => {
+    const uploadedFiles = Array.from(event.target.files);
+    if (uploadedFiles.length === 0) return;
+
+    // Limit to 5 files
+    if (uploadedFiles.length > 5) {
+      addToast('Maximum 5 strategies can be compared', 'error');
+      return;
+    }
+
+    // Check all files are CSV
+    const invalidFiles = uploadedFiles.filter(f => !f.name.endsWith('.csv'));
+    if (invalidFiles.length > 0) {
+      addToast('All files must be CSV format', 'error');
+      return;
+    }
+
+    // Check current count + new files don't exceed 5
+    if (strategies.length + uploadedFiles.length > 5) {
+      addToast(`Can only add ${5 - strategies.length} more strategies`, 'error');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      for (const uploadedFile of uploadedFiles) {
+        const text = await uploadedFile.text();
+        const fileInfo = parseFileName(uploadedFile.name);
+
+        const lines = text.split('\n');
+        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+
+        const trades = [];
+        for (let i = 1; i < lines.length; i++) {
+          if (!lines[i].trim()) continue;
+          const values = lines[i].split(',');
+          const trade = {};
+          for (let j = 0; j < headers.length; j++) {
+            trade[headers[j]] = values[j]?.trim().replace(/"/g, '');
+          }
+          if (trade['Trade #'] && trade['Type'] && trade['Date/Time']) {
+            trades.push(trade);
+          }
+        }
+
+        if (trades.length === 0) {
+          addToast(`No valid trades found in ${uploadedFile.name}`, 'error');
+          continue;
+        }
+
+        // Create a strategy entry
+        const strategyId = Date.now() + Math.random();
+        const newStrategy = {
+          id: strategyId,
+          fileName: uploadedFile.name,
+          fileInfo,
+          trades,
+          analyzed: false
+        };
+
+        setStrategies(prev => [...prev, newStrategy]);
+        addToast(`Added strategy: ${fileInfo.strategyName}`, 'success');
+      }
+    } catch (err) {
+      addToast('Error reading files: ' + err.message, 'error');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [strategies.length]);
+
+  // Remove strategy from comparison list
+  const removeStrategy = useCallback((strategyId) => {
+    setStrategies(prev => prev.filter(s => s.id !== strategyId));
+    setSelectedStrategies(prev => prev.filter(id => id !== strategyId));
+    addToast('Strategy removed', 'info');
+  }, []);
+
+  // Toggle strategy selection
+  const toggleStrategySelection = useCallback((strategyId) => {
+    setSelectedStrategies(prev => {
+      if (prev.includes(strategyId)) {
+        return prev.filter(id => id !== strategyId);
+      } else if (prev.length < 5) {
+        return [...prev, strategyId];
+      }
+      return prev;
+    });
   }, []);
 
   React.useEffect(() => {
@@ -955,6 +1212,7 @@ TIME SLOT ANALYSIS
     { id: 'winrate', label: 'By Win Rate', icon: Target },
     { id: 'profitfactor', label: 'By Profit Factor', icon: Zap },
     { id: 'analytics', label: 'Advanced Analytics', icon: Activity },
+    { id: 'comparison', label: 'Strategy Comparison', icon: BarChart3 },
   ];
 
   return (
@@ -1939,6 +2197,374 @@ TIME SLOT ANALYSIS
                       </div>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Strategy Comparison Tab */}
+              {activeTab === 'comparison' && (
+                <div className="space-y-6">
+                  {strategies.length === 0 ? (
+                    <div className={`${cardBg} rounded-2xl p-12 text-center border ${borderColor}`}>
+                      <div className={`w-20 h-20 rounded-full ${darkMode ? 'bg-gray-700' : 'bg-gradient-to-br from-blue-100 to-purple-100'} flex items-center justify-center mx-auto mb-6`}>
+                        <BarChart3 size={40} className={darkMode ? 'text-blue-400' : 'text-blue-600'} />
+                      </div>
+                      <h2 className={`text-2xl font-bold mb-2 ${textColor}`}>Upload Multiple Strategies</h2>
+                      <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-8`}>
+                        Upload up to 5 CSV files to compare strategies side-by-side
+                      </p>
+
+                      <input
+                        type="file"
+                        accept=".csv"
+                        multiple
+                        onChange={handleMultiFileUpload}
+                        className="hidden"
+                        id="multi-file-upload"
+                      />
+                      <label
+                        htmlFor="multi-file-upload"
+                        className={`inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-8 py-3 rounded-lg cursor-pointer hover:from-blue-600 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl ${
+                          dragOverMulti ? 'ring-2 ring-offset-2 ring-blue-500' : ''
+                        }`}
+                      >
+                        <Upload size={20} />
+                        Choose CSV Files
+                      </label>
+
+                      <div className={`mt-6 p-4 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'} border-2 border-dashed ${borderColor}`}>
+                        <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                          Or drag and drop files here
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {/* Strategies List */}
+                      <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className={`text-lg font-bold ${textColor}`}>Loaded Strategies ({strategies.length}/5)</h3>
+                          <input
+                            type="file"
+                            accept=".csv"
+                            multiple
+                            onChange={handleMultiFileUpload}
+                            className="hidden"
+                            id="multi-file-upload-add"
+                          />
+                          {strategies.length < 5 && (
+                            <label
+                              htmlFor="multi-file-upload-add"
+                              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm cursor-pointer flex items-center gap-2"
+                            >
+                              <Upload size={16} />
+                              Add More
+                            </label>
+                          )}
+                        </div>
+
+                        <div className="space-y-3">
+                          {strategies.map((strategy, idx) => (
+                            <div key={strategy.id} className={`flex items-center justify-between p-4 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'} border ${borderColor}`}>
+                              <div className="flex items-center gap-4 flex-1">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedStrategies.includes(strategy.id)}
+                                  onChange={() => toggleStrategySelection(strategy.id)}
+                                  className="w-5 h-5 rounded cursor-pointer"
+                                />
+                                <div className="flex-1">
+                                  <p className="font-semibold text-blue-600">{strategy.fileInfo.strategyName}</p>
+                                  <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                    {strategy.fileInfo.symbol} • {strategy.trades.length} trades
+                                  </p>
+                                </div>
+                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                  strategy.analyzed
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                }`}>
+                                  {strategy.analyzed ? '✓ Analyzed' : '⏳ Ready'}
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => removeStrategy(strategy.id)}
+                                className="ml-4 p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900 rounded-lg transition-colors"
+                                title="Remove strategy"
+                              >
+                                <X size={18} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Comparison Results */}
+                      {comparisonResults ? (
+                        <div className="space-y-6">
+                          {/* Best Strategies Overview */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className={`${cardBg} rounded-lg p-4 border ${borderColor}`}>
+                              <p className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Best by P&L</p>
+                              <p className="font-semibold text-blue-600 text-sm">{comparisonResults.bestByPnL.name}</p>
+                              <p className={`text-lg font-bold ${comparisonResults.bestByPnL.metrics.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                ₹{comparisonResults.bestByPnL.metrics.totalPnL.toLocaleString()}
+                              </p>
+                            </div>
+
+                            <div className={`${cardBg} rounded-lg p-4 border ${borderColor}`}>
+                              <p className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Best by Win Rate</p>
+                              <p className="font-semibold text-purple-600 text-sm">{comparisonResults.bestByWinRate.name}</p>
+                              <p className="text-lg font-bold text-purple-600">{comparisonResults.bestByWinRate.metrics.winRate}%</p>
+                            </div>
+
+                            <div className={`${cardBg} rounded-lg p-4 border ${borderColor}`}>
+                              <p className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Best by Profit Factor</p>
+                              <p className="font-semibold text-green-600 text-sm">{comparisonResults.bestByProfitFactor.name}</p>
+                              <p className="text-lg font-bold text-green-600">{comparisonResults.bestByProfitFactor.metrics.profitFactor.toFixed(2)}</p>
+                            </div>
+
+                            <div className={`${cardBg} rounded-lg p-4 border ${borderColor}`}>
+                              <p className={`text-xs font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Best by Sharpe Ratio</p>
+                              <p className="font-semibold text-orange-600 text-sm">{comparisonResults.bestBySharpe.name}</p>
+                              <p className="text-lg font-bold text-orange-600">{comparisonResults.bestBySharpe.metrics.sharpeRatio.toFixed(2)}</p>
+                            </div>
+                          </div>
+
+                          {/* Equity Curve Comparison */}
+                          <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                            <h3 className={`text-lg font-bold ${textColor} mb-4`}>Equity Curve Comparison</h3>
+                            <ResponsiveContainer width="100%" height={300}>
+                              <LineChart>
+                                <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#374151' : '#e5e7eb'} />
+                                <XAxis label={{ value: 'Trade Number', position: 'insideBottomRight', offset: -5 }} stroke={darkMode ? '#9ca3af' : '#6b7280'} />
+                                <YAxis label={{ value: 'Cumulative P&L (₹)', angle: -90, position: 'insideLeft' }} stroke={darkMode ? '#9ca3af' : '#6b7280'} />
+                                <Tooltip
+                                  contentStyle={{
+                                    backgroundColor: darkMode ? '#1f2937' : '#ffffff',
+                                    border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`,
+                                    borderRadius: '8px'
+                                  }}
+                                  formatter={(value) => `₹${value.toLocaleString()}`}
+                                />
+                                <Legend />
+                                {comparisonResults.strategies.map((strategy, idx) => {
+                                  const colors = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'];
+                                  let cumulativePnL = 0;
+                                  const data = strategy.metrics.totalTrades > 0 ?
+                                    strategies
+                                      .find(s => s.id === strategy.id)
+                                      ?.trades.map((trade, tradeIdx) => {
+                                        cumulativePnL += trade.pnl;
+                                        return {
+                                          tradeNumber: tradeIdx + 1,
+                                          [strategy.name]: cumulativePnL
+                                        };
+                                      }) || [] : [];
+
+                                  return (
+                                    <Line
+                                      key={strategy.id}
+                                      type="monotone"
+                                      dataKey={strategy.name}
+                                      data={data}
+                                      stroke={colors[idx % colors.length]}
+                                      dot={false}
+                                      strokeWidth={2}
+                                      isAnimationActive={false}
+                                    />
+                                  );
+                                })}
+                              </LineChart>
+                            </ResponsiveContainer>
+                          </div>
+
+                          {/* P&L Distribution Chart */}
+                          <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                            <h3 className={`text-lg font-bold ${textColor} mb-4`}>P&L Distribution</h3>
+                            <ResponsiveContainer width="100%" height={250}>
+                              <BarChart data={comparisonResults.strategies.map(s => ({
+                                name: s.name,
+                                'Total P&L': s.metrics.totalPnL,
+                                'Avg P&L': s.metrics.averagePnL
+                              }))}>
+                                <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#374151' : '#e5e7eb'} />
+                                <XAxis dataKey="name" stroke={darkMode ? '#9ca3af' : '#6b7280'} />
+                                <YAxis stroke={darkMode ? '#9ca3af' : '#6b7280'} />
+                                <Tooltip
+                                  contentStyle={{
+                                    backgroundColor: darkMode ? '#1f2937' : '#ffffff',
+                                    border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`,
+                                    borderRadius: '8px'
+                                  }}
+                                  formatter={(value) => `₹${value.toLocaleString()}`}
+                                />
+                                <Legend />
+                                <Bar dataKey="Total P&L" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+                                <Bar dataKey="Avg P&L" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+
+                          {/* Risk vs Return Scatter */}
+                          <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                            <h3 className={`text-lg font-bold ${textColor} mb-4`}>Risk vs Return Analysis</h3>
+                            <ResponsiveContainer width="100%" height={250}>
+                              <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#374151' : '#e5e7eb'} />
+                                <XAxis
+                                  type="number"
+                                  dataKey="maxDrawdown"
+                                  label={{ value: 'Max Drawdown (₹)', position: 'insideBottomRight', offset: -10 }}
+                                  stroke={darkMode ? '#9ca3af' : '#6b7280'}
+                                />
+                                <YAxis
+                                  type="number"
+                                  dataKey="totalPnL"
+                                  label={{ value: 'Total P&L (₹)', angle: -90, position: 'insideLeft' }}
+                                  stroke={darkMode ? '#9ca3af' : '#6b7280'}
+                                />
+                                <Tooltip
+                                  contentStyle={{
+                                    backgroundColor: darkMode ? '#1f2937' : '#ffffff',
+                                    border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`,
+                                    borderRadius: '8px'
+                                  }}
+                                  cursor={{ strokeDasharray: '3 3' }}
+                                  formatter={(value) => `₹${value.toLocaleString()}`}
+                                  labelFormatter={(label) => `Strategy: ${label}`}
+                                />
+                                <Scatter
+                                  name="Strategies"
+                                  data={comparisonResults.strategies.map(s => ({
+                                    ...s.metrics,
+                                    strategiesName: s.name
+                                  }))}
+                                  fill="#3b82f6"
+                                  shape="circle"
+                                />
+                              </ScatterChart>
+                            </ResponsiveContainer>
+                          </div>
+
+                          {/* Win Rate Comparison */}
+                          <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                            <h3 className={`text-lg font-bold ${textColor} mb-4`}>Win Rate & Profit Factor</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                              <ResponsiveContainer width="100%" height={250}>
+                                <BarChart data={comparisonResults.strategies.map(s => ({
+                                  name: s.name,
+                                  'Win Rate': s.metrics.winRate
+                                }))}>
+                                  <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#374151' : '#e5e7eb'} />
+                                  <XAxis dataKey="name" stroke={darkMode ? '#9ca3af' : '#6b7280'} />
+                                  <YAxis stroke={darkMode ? '#9ca3af' : '#6b7280'} label={{ value: '%', angle: -90, position: 'insideLeft' }} />
+                                  <Tooltip
+                                    contentStyle={{
+                                      backgroundColor: darkMode ? '#1f2937' : '#ffffff',
+                                      border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`,
+                                      borderRadius: '8px'
+                                    }}
+                                    formatter={(value) => `${value.toFixed(2)}%`}
+                                  />
+                                  <Bar dataKey="Win Rate" fill="#10b981" radius={[8, 8, 0, 0]} />
+                                </BarChart>
+                              </ResponsiveContainer>
+
+                              <ResponsiveContainer width="100%" height={250}>
+                                <BarChart data={comparisonResults.strategies.map(s => ({
+                                  name: s.name,
+                                  'Profit Factor': s.metrics.profitFactor
+                                }))}>
+                                  <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#374151' : '#e5e7eb'} />
+                                  <XAxis dataKey="name" stroke={darkMode ? '#9ca3af' : '#6b7280'} />
+                                  <YAxis stroke={darkMode ? '#9ca3af' : '#6b7280'} />
+                                  <Tooltip
+                                    contentStyle={{
+                                      backgroundColor: darkMode ? '#1f2937' : '#ffffff',
+                                      border: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`,
+                                      borderRadius: '8px'
+                                    }}
+                                    formatter={(value) => value.toFixed(2)}
+                                  />
+                                  <Bar dataKey="Profit Factor" fill="#f59e0b" radius={[8, 8, 0, 0]} />
+                                </BarChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+
+                          {/* Comprehensive Comparison Table */}
+                          <div className={`${cardBg} rounded-lg p-6 border ${borderColor} overflow-x-auto`}>
+                            <h3 className={`text-lg font-bold ${textColor} mb-4`}>Detailed Comparison</h3>
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className={`border-b ${borderColor}`}>
+                                  <th className={`text-left py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Strategy</th>
+                                  <th className={`text-right py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Trades</th>
+                                  <th className={`text-right py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Total P&L</th>
+                                  <th className={`text-right py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Win Rate %</th>
+                                  <th className={`text-right py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Profit Factor</th>
+                                  <th className={`text-right py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Sharpe Ratio</th>
+                                  <th className={`text-right py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Max Drawdown</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {comparisonResults.ranking.map((strategy, idx) => (
+                                  <tr key={strategy.id} className={`border-b ${borderColor} ${idx === 0 ? 'bg-blue-50 dark:bg-blue-900 dark:bg-opacity-30' : ''}`}>
+                                    <td className={`py-3 px-2 ${idx === 0 ? 'font-bold text-blue-600' : textColor}`}>
+                                      {strategy.name}
+                                      {idx === 0 && <span className="ml-2 text-xs bg-blue-600 text-white px-2 py-1 rounded">🏆 #1</span>}
+                                    </td>
+                                    <td className={`py-3 px-2 text-right ${textColor}`}>{strategy.metrics.totalTrades}</td>
+                                    <td className={`py-3 px-2 text-right ${strategy.metrics.totalPnL >= 0 ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}`}>
+                                      ₹{strategy.metrics.totalPnL.toLocaleString()}
+                                    </td>
+                                    <td className={`py-3 px-2 text-right ${textColor}`}>{strategy.metrics.winRate}%</td>
+                                    <td className={`py-3 px-2 text-right ${textColor}`}>{strategy.metrics.profitFactor.toFixed(2)}</td>
+                                    <td className={`py-3 px-2 text-right ${textColor}`}>{strategy.metrics.sharpeRatio.toFixed(2)}</td>
+                                    <td className={`py-3 px-2 text-right ${textColor}`}>₹{strategy.metrics.maxDrawdown.toLocaleString()}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {/* Back Button */}
+                          <button
+                            onClick={() => setComparisonResults(null)}
+                            className={`w-full px-6 py-2 ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-lg transition-colors font-medium`}
+                          >
+                            ← Back to Strategies
+                          </button>
+                        </div>
+                      ) : selectedStrategies.length > 1 ? (
+                        <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                          <button
+                            onClick={compareStrategies}
+                            disabled={isAnalyzing}
+                            className="w-full px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 disabled:from-gray-500 disabled:to-gray-500 transition-all duration-300 shadow-lg hover:shadow-xl font-semibold flex items-center justify-center gap-2"
+                          >
+                            {isAnalyzing ? (
+                              <>
+                                <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                Comparing...
+                              </>
+                            ) : (
+                              <>
+                                <BarChart3 size={18} />
+                                Compare {selectedStrategies.length} Strategies
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className={`${cardBg} rounded-lg p-8 text-center border ${borderColor}`}>
+                          <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            Select at least 2 strategies to compare
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
