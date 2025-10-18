@@ -87,12 +87,20 @@ See [STATIC_DEPLOYMENT.md](STATIC_DEPLOYMENT.md) for detailed deployment instruc
 
 1. **Upload CSV File**: Click "Choose CSV File" and select your TradingView strategy report
 2. **Configure Analysis**:
-   - Select analysis type (Entry, Exit, or Combo)
+   - Select analysis type (Entry, Exit, or Entry→Exit Combo)
    - Choose time interval (5m, 15m, 30m, 60m)
-   - Set number of results to display
+   - Set number of results to display (Top 10, 15, 25, 50, 100, or All)
    - Toggle intraday-only filter if needed
-3. **View Results**: Browse through different tabs (Profitability, Win Rate, Profit Factor)
-4. **Explore Details**: Click "Expand" on any row to see weekly/monthly consistency data
+3. **View Results**: Browse through different tabs:
+   - **Overview**: Summary statistics and key metrics
+   - **By Profitability**: Most profitable time slots with weekly/monthly breakdown
+   - **By Win Rate**: Highest win rate time slots with consistency metrics
+   - **By Profit Factor**: Best profit factor time slots with performance breakdown
+   - **Advanced Analytics**: Comprehensive visual analysis with charts and heatmaps
+4. **Explore Details**: Click "Show" on any row to expand and see:
+   - Weekly Performance breakdown (P&L, Win Rate, or Profit Factor)
+   - Monthly Performance breakdown (P&L, Win Rate, or Profit Factor)
+   - Trading consistency patterns
 5. **Export Data**: Use export buttons to save results as PDF or CSV
 
 ## 📁 File Structure
@@ -106,7 +114,7 @@ TV Strategy Analyzer/
 │   ├── App.js                       # Main App component
 │   ├── index.js                     # React entry point
 │   ├── index.css                    # Global styles and Tailwind utilities
-│   └── TradingViewStrategyAnalyzer.js # Core analyzer component (1,330 lines)
+│   └── TradingViewStrategyAnalyzer.js # Core analyzer component (1,934 lines)
 ├── package.json                     # Dependencies and build scripts
 ├── package-lock.json                # Dependency lock file
 ├── .gitignore                       # Git exclusions
@@ -226,10 +234,22 @@ For issues or feature requests:
 3. Verify that your CSV contains both entry and exit trades
 4. Make sure trade numbers match between entry and exit records
 
-## 🎉 Recent Updates (v2.0)
+## 🎉 Recent Updates (v2.1)
 
-### New in Version 2.0:
-- ✅ **Interactive Charts**: Added comprehensive data visualization with Recharts
+### New in Version 2.1:
+- ✅ **Horizontal Navigation Bar**: Navigation moved to top of page for better layout
+- ✅ **Expandable Row Details**: Added Show/Hide buttons on all analysis tables
+- ✅ **Weekly/Monthly Performance Metrics**:
+  - By Profitability: Weekly and Monthly P&L breakdown
+  - By Win Rate: Weekly and Monthly Win Rate breakdown
+  - By Profit Factor: Weekly and Monthly Profit Factor breakdown
+- ✅ **Dynamic Pagination**: 15 records per page with full pagination controls
+- ✅ **Smart Filtering**: Show Results filter (10, 15, 25, 50, 100, All) now works dynamically
+- ✅ **Performance Improvements**: Instant filter updates without recalculation
+- ✅ **Improved UI Layout**: Center-aligned navigation with collapsible sidebar menu
+
+### Previous Updates (v2.0):
+- ✅ **Interactive Charts**: Comprehensive data visualization with Recharts
 - ✅ **Equity Curve Analysis**: Track portfolio performance over time
 - ✅ **Day of Week Analysis**: Visual analysis of trading performance by weekday
 - ✅ **Enhanced Visualizations**: LineCharts, BarCharts, ScatterCharts
@@ -249,7 +269,11 @@ Potential improvements that could be added:
 
 ---
 
-**Last Updated**: October 2024  
-**Version**: 2.0 with Interactive Charts and Enhanced Analysis  
-**File Size**: ~160KB (1,769 lines of code)  
-**New Dependencies**: Recharts for data visualization
+**Last Updated**: October 2024
+**Version**: 2.1 with Enhanced Navigation and Expandable Row Details
+**File Size**: ~170KB (1,934 lines of code)
+**Core Dependencies**:
+- React for UI framework
+- Recharts for interactive data visualization
+- Lucide React for modern icons
+- Tailwind CSS for styling
