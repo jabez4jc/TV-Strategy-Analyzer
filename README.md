@@ -323,12 +323,46 @@ For issues or feature requests:
 3. Verify that your CSV contains both entry and exit trades
 4. Make sure trade numbers match between entry and exit records
 
-## 🎉 Recent Updates (v3.1)
+## 🎉 Recent Updates (v4.0)
 
-### New in Version 3.1:
+### New in Version 4.0 - MAJOR UX OVERHAUL:
+- ✅ **Tab Consolidation: 12 Tabs → 7 Tabs (42% Reduction)**
+  - Consolidated related tabs with dynamic view toggles for cleaner navigation
+  - Logical feature grouping reduces cognitive load
+
+- ✅ **Performance Analysis Tab** (3 views in 1):
+  - Profitability Analysis (formerly separate tab)
+  - Win Rate Analysis (formerly separate tab)
+  - Profit Factor Analysis (formerly separate tab)
+  - Dynamic view switching with independent pagination per view
+
+- ✅ **Time Patterns Tab** (2 views in 1):
+  - Segmentation Analysis
+  - Enhanced Heatmap
+
+- ✅ **Optimization Tab** (2 views in 1):
+  - Exit & Stop Optimization
+  - Balanced Optimization
+
+- ✅ **Trade Insights Tab** (2 views in 1):
+  - Trade Clustering & Correlation
+  - Weakness Detection
+
+- ✅ **Dynamic Sidebar Controls**:
+  - Tab-specific controls appear only when relevant
+  - View toggle buttons show for consolidated tabs
+  - Intraday Only filter always visible (critical global functionality)
+  - Configuration options move to sidebar, main area shows results only
+
+- ✅ **Simplified Navigation**:
+  - 7 main tabs: Overview, Performance Analysis, Advanced Analytics, Strategy Comparison, Time Patterns, Optimization, Trade Insights
+  - Cleaner header with less clutter
+  - All existing functionality preserved
+
+### Previous Updates (v3.1):
 - ✅ **CRITICAL FIX: Intraday Only Filter Now Works Globally**
   - Fixed major bug where Intraday Only filter only applied to Overview tab
-  - All 12 navigation tabs now respect the filter setting consistently
+  - All 7 navigation tabs now respect the filter setting consistently
   - Centralized filter logic with `getFilteredTrades()` helper function
   - **Impact**: When enabled, excludes multi-day positions from ALL analysis:
     - Enhanced Heatmaps now show only same-day trades
