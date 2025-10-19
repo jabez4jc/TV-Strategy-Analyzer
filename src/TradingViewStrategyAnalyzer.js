@@ -1750,6 +1750,7 @@ const ModernTradingAnalyzer = () => {
 
         const trades = [];
         const tradePairs = {};
+        const allEntryTrades = []; // Track entry trades for date range calculation
 
         for (let i = 1; i < lines.length; i++) {
           if (!lines[i].trim()) continue;
@@ -1761,6 +1762,11 @@ const ModernTradingAnalyzer = () => {
           const pnl = parseFloat(values[pnlIndex]) || 0;
 
           if (!tradeNum || !type || !dateTime) continue;
+
+          // Store entry trades for date range calculation
+          if (type.toLowerCase().includes('entry')) {
+            allEntryTrades.push({ 'Date/Time': dateTime });
+          }
 
           if (!tradePairs[tradeNum]) {
             tradePairs[tradeNum] = {};
@@ -1792,18 +1798,31 @@ const ModernTradingAnalyzer = () => {
           continue;
         }
 
+        // Calculate date range for this strategy
+        const dateRange = getDateRange(allEntryTrades);
+
+        // Enhance fileInfo with period and generatedDate
+        const enhancedFileInfo = {
+          ...fileInfo,
+          period: dateRange.start && dateRange.end
+            ? `${dateRange.start} to ${dateRange.end}`
+            : 'Unknown Period',
+          generatedDate: fileInfo.reportDate || 'Unknown Date',
+          dateRange: dateRange
+        };
+
         // Create a strategy entry
         const strategyId = Date.now() + Math.random();
         const newStrategy = {
           id: strategyId,
           fileName: uploadedFile.name,
-          fileInfo,
+          fileInfo: enhancedFileInfo,
           trades,
           analyzed: false
         };
 
         setStrategies(prev => [...prev, newStrategy]);
-        addToast(`Added strategy: ${fileInfo.strategyName}`, 'success');
+        addToast(`Added strategy: ${enhancedFileInfo.strategyName}`, 'success');
       }
     } catch (err) {
       addToast('Error reading files: ' + err.message, 'error');
@@ -2664,34 +2683,34 @@ TIME SLOT ANALYSIS
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Strategy Info */}
-              <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
-                <h2 className={`text-lg font-bold ${textColor} mb-4`}>Strategy Overview</h2>
-                <div className="grid grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Strategy</p>
-                    <p className="font-semibold text-blue-600">{results.fileInfo.strategyName}</p>
-                  </div>
-                  <div>
-                    <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Symbol</p>
-                    <p className="font-semibold text-green-600">{results.fileInfo.symbol}</p>
-                  </div>
-                  <div>
-                    <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Period</p>
-                    <p className="font-semibold text-purple-600 text-xs">
-                      {results.fileInfo.dateRange.start} to {results.fileInfo.dateRange.end}
-                    </p>
-                  </div>
-                  <div>
-                    <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Generated</p>
-                    <p className="font-semibold text-orange-600">{results.fileInfo.reportDate}</p>
-                  </div>
-                </div>
-              </div>
-
               {/* Overview Tab */}
               {activeTab === 'overview' && (
                 <div className="space-y-6">
+                  {/* Strategy Info */}
+                  <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                    <h2 className={`text-lg font-bold ${textColor} mb-4`}>Strategy Overview</h2>
+                    <div className="grid grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Strategy</p>
+                        <p className="font-semibold text-blue-600">{results.fileInfo.strategyName}</p>
+                      </div>
+                      <div>
+                        <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Symbol</p>
+                        <p className="font-semibold text-green-600">{results.fileInfo.symbol}</p>
+                      </div>
+                      <div>
+                        <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Period</p>
+                        <p className="font-semibold text-purple-600 text-xs">
+                          {results.fileInfo.dateRange.start} to {results.fileInfo.dateRange.end}
+                        </p>
+                      </div>
+                      <div>
+                        <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-1`}>Generated</p>
+                        <p className="font-semibold text-orange-600">{results.fileInfo.reportDate}</p>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-4 gap-4">
                     <KPICard
                       title="Total Trades"
@@ -3315,6 +3334,67 @@ TIME SLOT ANALYSIS
                           ))}
                         </div>
                       </div>
+
+                      {/* Selected Strategies Summary */}
+                      {selectedStrategies.length > 0 && (
+                        <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                          <h3 className={`text-lg font-bold ${textColor} mb-4`}>Selected Strategies Summary ({selectedStrategies.length})</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {strategies.filter(s => selectedStrategies.includes(s.id)).map((strategy, idx) => (
+                              <div key={strategy.id} className={`p-4 rounded-lg border ${borderColor} ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                                <div className="flex items-start justify-between mb-3">
+                                  <div className="flex-1">
+                                    <p className="font-semibold text-blue-600 mb-1">{strategy.fileInfo.strategyName}</p>
+                                    <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                      {strategy.fileInfo.symbol}
+                                    </p>
+                                  </div>
+                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                    idx === 0 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                                    idx === 1 ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
+                                    idx === 2 ? 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200' :
+                                    idx === 3 ? 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' :
+                                    'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                  }`}>
+                                    #{idx + 1}
+                                  </span>
+                                </div>
+                                <div className="space-y-2 text-sm">
+                                  <div className="flex justify-between">
+                                    <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Trades:</span>
+                                    <span className="font-medium">{strategy.trades.length}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Period:</span>
+                                    <span className="font-medium text-xs">{strategy.fileInfo.period}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Generated:</span>
+                                    <span className="font-medium text-xs">{strategy.fileInfo.generatedDate}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="mt-4 flex justify-center">
+                            <button
+                              onClick={compareStrategies}
+                              disabled={selectedStrategies.length < 2}
+                              className={`px-6 py-3 rounded-lg font-medium transition-all ${
+                                selectedStrategies.length < 2
+                                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                  : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl'
+                              }`}
+                            >
+                              {selectedStrategies.length < 2
+                                ? `Select at least 2 strategies to compare (${selectedStrategies.length}/2)`
+                                : `Compare ${selectedStrategies.length} Strategies`
+                              }
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Comparison Results */}
                       {comparisonResults ? (
