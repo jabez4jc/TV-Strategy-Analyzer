@@ -3319,6 +3319,27 @@ TIME SLOT ANALYSIS
                       {/* Comparison Results */}
                       {comparisonResults ? (
                         <div className="space-y-6">
+                          {/* Multi-Symbol Warning */}
+                          {(() => {
+                            const uniqueSymbols = [...new Set(strategies.map(s => s.fileInfo.symbol))];
+                            return uniqueSymbols.length > 1 ? (
+                              <div className={`${darkMode ? 'bg-yellow-900 border-yellow-700' : 'bg-yellow-50 border-yellow-200'} border-2 rounded-lg p-4`}>
+                                <div className="flex items-start gap-3">
+                                  <AlertCircle className={darkMode ? 'text-yellow-400' : 'text-yellow-600'} size={24} />
+                                  <div>
+                                    <h4 className={`font-bold ${darkMode ? 'text-yellow-200' : 'text-yellow-800'} mb-1`}>
+                                      ⚠️ Multi-Symbol Comparison Detected
+                                    </h4>
+                                    <p className={`text-sm ${darkMode ? 'text-yellow-300' : 'text-yellow-700'}`}>
+                                      You are comparing strategies across different instruments: <strong>{uniqueSymbols.join(', ')}</strong>.
+                                      Results may not be directly comparable due to different volatility, market conditions, and trading characteristics.
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : null;
+                          })()}
+
                           {/* Best Strategies Overview */}
                           <div className="grid grid-cols-2 gap-4">
                             <div className={`${cardBg} rounded-lg p-4 border ${borderColor}`}>
