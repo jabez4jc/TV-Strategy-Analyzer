@@ -1710,8 +1710,25 @@ const ModernTradingAnalyzer = () => {
   React.useEffect(() => {
     if (cachedData) {
       performAnalysis(cachedData.completeTrades, cachedData.fileInfo, cachedData.dateRange);
+      // Auto-run balanced optimization with default settings
+      setTimeout(() => {
+        setOptimizationObjective('sharpe');
+        setMaxDrawdownTarget(25);
+        setMinWinRateTarget(45);
+      }, 500);
     }
   }, [timeSlotInterval, analysisType, intradayOnly]);
+
+  React.useEffect(() => {
+    // Auto-run balanced optimization when defaults are set
+    if (cachedData && !balancedOptimizationResults) {
+      const runOptimization = async () => {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        performBalancedOptimization();
+      };
+      runOptimization();
+    }
+  }, [cachedData]);
 
   const exportToCSV = () => {
     if (!results) return;
@@ -4375,9 +4392,59 @@ TIME SLOT ANALYSIS
               {/* Balanced Optimization Tab (Phase 7) */}
               {activeTab === 'balanced' && results && (
                 <div className="space-y-6">
+                  {/* Auto Optimization Status */}
+                  <div style={{ padding: '16px', borderRadius: '8px', backgroundColor: '#10b981', border: '2px solid #059669' }}>
+                    <p style={{ color: '#ffffff', fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>
+                      ✅ AUTOMATED OPTIMIZATION RUNNING
+                    </p>
+                    <p style={{ color: '#ffffff', fontSize: '12px', opacity: 0.9 }}>
+                      {isBalancedOptimizing ? 'Analyzing 192 configurations...' : 'Optimization complete! Results below.'}
+                    </p>
+                  </div>
+
+                  {/* Quick Presets */}
+                  <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                    <h3 className={`text-lg font-bold ${textColor} mb-4`}>⚡ Quick Optimization Presets</h3>
+                    <div className="grid grid-cols-3 gap-4">
+                      <button
+                        onClick={() => {
+                          setOptimizationObjective('sharpe');
+                          setMaxDrawdownTarget(20);
+                          setMinWinRateTarget(50);
+                          setTimeout(() => performBalancedOptimization(), 100);
+                        }}
+                        className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                      >
+                        🎯 Conservative (Low Risk)
+                      </button>
+                      <button
+                        onClick={() => {
+                          setOptimizationObjective('profitfactor');
+                          setMaxDrawdownTarget(30);
+                          setMinWinRateTarget(45);
+                          setTimeout(() => performBalancedOptimization(), 100);
+                        }}
+                        className="px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                      >
+                        ⚖️ Balanced
+                      </button>
+                      <button
+                        onClick={() => {
+                          setOptimizationObjective('riskadjusted');
+                          setMaxDrawdownTarget(40);
+                          setMinWinRateTarget(40);
+                          setTimeout(() => performBalancedOptimization(), 100);
+                        }}
+                        className="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                      >
+                        🚀 Aggressive (High Return)
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Controls */}
                   <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
-                    <h3 className={`text-lg font-bold ${textColor} mb-4`}>Balanced Optimization</h3>
+                    <h3 className={`text-lg font-bold ${textColor} mb-4`}>Manual Configuration</h3>
                     <div className="grid grid-cols-4 gap-6">
                       <div>
                         <p className={`text-sm font-medium ${textColor} mb-3`}>Optimization Objective</p>
