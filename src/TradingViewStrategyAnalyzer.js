@@ -1751,6 +1751,34 @@ const ModernTradingAnalyzer = () => {
     }
   }, [cachedData]);
 
+  // FIX: Auto-trigger Weakness Detection when metric changes
+  React.useEffect(() => {
+    if (cachedData && weaknessResults && activeTab === 'insights' && insightsView === 'weakness') {
+      performWeaknessDetection();
+    }
+  }, [weaknessMetric, weaknessThreshold]);
+
+  // FIX: Auto-trigger Trade Clustering when type changes
+  React.useEffect(() => {
+    if (cachedData && activeTab === 'insights' && insightsView === 'clustering') {
+      performTradeClusteringAnalysis();
+    }
+  }, [clusteringType]);
+
+  // FIX: Auto-trigger Segmentation when type changes
+  React.useEffect(() => {
+    if (cachedData && activeTab === 'timepatterns' && timePatternsView === 'segmentation') {
+      performSegmentationAnalysis();
+    }
+  }, [segmentationType]);
+
+  // FIX: Auto-trigger Heatmap when resolution/metric changes
+  React.useEffect(() => {
+    if (cachedData && activeTab === 'timepatterns' && timePatternsView === 'heatmap') {
+      performEnhancedHeatmapAnalysis();
+    }
+  }, [heatmapResolution, heatmapMetric]);
+
   const exportToCSV = () => {
     if (!results) return;
 
@@ -2012,8 +2040,8 @@ TIME SLOT ANALYSIS
 
       <div className="flex">
         {/* Sidebar */}
-        <aside className={`${sidebarOpen ? 'w-64' : 'w-0'} ${cardBg} border-r ${borderColor} transition-all duration-300 overflow-hidden max-h-[calc(100vh-140px)]`}>
-          <div className="p-4 space-y-2 overflow-y-auto">
+        <aside className={`${sidebarOpen ? 'w-64' : 'w-0'} ${cardBg} border-r ${borderColor} transition-all duration-300 overflow-hidden sticky top-0 h-screen`}>
+          <div className="p-4 space-y-2 overflow-y-auto h-full">
             <div className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'} px-4 py-2 uppercase`}>Configuration</div>
 
             {/* GLOBAL FILTER - Always Visible */}
@@ -2214,10 +2242,7 @@ TIME SLOT ANALYSIS
                     ].map(seg => (
                       <button
                         key={seg.value}
-                        onClick={() => {
-                          setSegmentationType(seg.value);
-                          setTimeout(() => performSegmentationAnalysis(), 0);
-                        }}
+                        onClick={() => setSegmentationType(seg.value)}
                         className={`w-full px-3 py-2 rounded text-xs font-medium transition-colors text-left ${
                           segmentationType === seg.value
                             ? 'bg-blue-500 text-white'
@@ -2362,10 +2387,7 @@ TIME SLOT ANALYSIS
                     ].map(cluster => (
                       <button
                         key={cluster.value}
-                        onClick={() => {
-                          setClusteringType(cluster.value);
-                          setTimeout(() => performTradeClusteringAnalysis(), 0);
-                        }}
+                        onClick={() => setClusteringType(cluster.value)}
                         className={`w-full px-3 py-2 rounded text-xs font-medium transition-colors text-left ${
                           clusteringType === cluster.value
                             ? 'bg-blue-500 text-white'
@@ -2467,6 +2489,14 @@ TIME SLOT ANALYSIS
                     className="w-full"
                   />
                 </div>
+
+                <button
+                  onClick={performBalancedOptimization}
+                  disabled={isBalancedOptimizing}
+                  className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium disabled:bg-gray-500 disabled:cursor-not-allowed"
+                >
+                  {isBalancedOptimizing ? 'Optimizing...' : '🚀 Start Optimization'}
+                </button>
               </>
             )}
 
@@ -4305,58 +4335,6 @@ TIME SLOT ANALYSIS
                       >
                         🚀 Aggressive (High Return)
                       </button>
-                    </div>
-                  </div>
-
-                  {/* Controls */}
-                  <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
-                    <h3 className={`text-lg font-bold ${textColor} mb-4`}>Manual Configuration</h3>
-                    <div className="grid grid-cols-4 gap-6">
-                      <div>
-                        <p className={`text-sm font-medium ${textColor} mb-3`}>Optimization Objective</p>
-                        <select
-                          value={optimizationObjective}
-                          onChange={(e) => setOptimizationObjective(e.target.value)}
-                          className={`w-full px-3 py-2 rounded-lg border ${borderColor} ${darkMode ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'}`}
-                        >
-                          <option value="sharpe">Maximize Sharpe Ratio</option>
-                          <option value="profitfactor">Maximize Profit Factor</option>
-                          <option value="riskadjusted">Maximize Risk-Adjusted Returns</option>
-                        </select>
-                      </div>
-                      <div>
-                        <p className={`text-sm font-medium ${textColor} mb-3`}>Max Drawdown: {maxDrawdownTarget}%</p>
-                        <input
-                          type="range"
-                          min="5"
-                          max="50"
-                          step="5"
-                          value={maxDrawdownTarget}
-                          onChange={(e) => setMaxDrawdownTarget(parseInt(e.target.value))}
-                          className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <p className={`text-sm font-medium ${textColor} mb-3`}>Min Win Rate: {minWinRateTarget}%</p>
-                        <input
-                          type="range"
-                          min="20"
-                          max="80"
-                          step="5"
-                          value={minWinRateTarget}
-                          onChange={(e) => setMinWinRateTarget(parseInt(e.target.value))}
-                          className="w-full"
-                        />
-                      </div>
-                      <div className="flex items-end gap-3">
-                        <button
-                          onClick={performBalancedOptimization}
-                          disabled={isBalancedOptimizing}
-                          className="flex-1 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:bg-gray-500"
-                        >
-                          {isBalancedOptimizing ? 'Optimizing...' : 'Start Optimization'}
-                        </button>
-                      </div>
                     </div>
                   </div>
 
