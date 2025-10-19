@@ -4428,7 +4428,7 @@ TIME SLOT ANALYSIS
                   </div>
 
                   {/* Optimization Results */}
-                  {balancedOptimizationResults && (
+                  {balancedOptimizationResults && balancedOptimizationResults.bestConfig && (
                     <div className="space-y-6">
                       {/* Best Configuration */}
                       <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#6d28d9', border: '2px solid #5b21b6' }}>
@@ -4530,6 +4530,17 @@ TIME SLOT ANALYSIS
                           </tbody>
                         </table>
                       </div>
+                    </div>
+                  )}
+
+                  {balancedOptimizationResults && !balancedOptimizationResults.bestConfig && (
+                    <div className={`${cardBg} rounded-lg p-8 text-center border ${borderColor}`}>
+                      <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-4`}>
+                        No qualifying configurations found with current constraints.
+                      </p>
+                      <p className={`${darkMode ? 'text-gray-500' : 'text-gray-500'} text-sm`}>
+                        Try reducing the maximum drawdown limit or minimum win rate requirement.
+                      </p>
                     </div>
                   )}
                 </div>
