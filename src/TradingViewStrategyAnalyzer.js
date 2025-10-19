@@ -956,7 +956,9 @@ const ModernTradingAnalyzer = () => {
         const strategy = strategies.find(s => s.id === strategyId);
         if (!strategy) continue;
 
-        const metrics = calculateStrategyMetrics(strategy.trades);
+        // FIX: Apply intraday filter to strategy trades before calculating metrics
+        const filteredTrades = getFilteredTrades(strategy.trades);
+        const metrics = calculateStrategyMetrics(filteredTrades);
         if (metrics) {
           strategyComparisons.push({
             id: strategyId,
@@ -1015,7 +1017,7 @@ const ModernTradingAnalyzer = () => {
     } finally {
       setIsAnalyzing(false);
     }
-  }, [strategies, selectedStrategies]);
+  }, [strategies, selectedStrategies, intradayOnly]);
 
   // Advanced Segmentation Analysis (Phase 4)
   const performSegmentationAnalysis = useCallback(() => {
@@ -1958,10 +1960,10 @@ TIME SLOT ANALYSIS
     { id: 'overview', label: 'Overview', icon: BarChart3 },
     { id: 'performance', label: 'Performance Analysis', icon: TrendingUp },
     { id: 'analytics', label: 'Advanced Analytics', icon: Activity },
-    { id: 'comparison', label: 'Strategy Comparison', icon: BarChart3 },
     { id: 'timepatterns', label: 'Time Patterns', icon: Calendar },
     { id: 'optimization', label: 'Optimization', icon: Target },
     { id: 'insights', label: 'Trade Insights', icon: AlertCircle },
+    { id: 'comparison', label: 'Strategy Comparison', icon: BarChart3 },
   ];
 
   return (
@@ -2078,8 +2080,8 @@ TIME SLOT ANALYSIS
 
                 <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
                   <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Interval (minutes)</p>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[5, 15, 30, 60].map(interval => (
+                  <div className="grid grid-cols-3 gap-2">
+                    {[1, 3, 5, 15, 30, 60].map(interval => (
                       <button
                         key={interval}
                         onClick={() => setTimeSlotInterval(interval)}
@@ -2237,8 +2239,7 @@ TIME SLOT ANALYSIS
                       { value: 'day', label: '📅 Day of Week', icon: '📅' },
                       { value: 'hour', label: '🕐 Hour of Day', icon: '🕐' },
                       { value: 'direction', label: '📊 P&L Direction', icon: '📊' },
-                      { value: 'duration', label: '⏱️ Trade Duration', icon: '⏱️' },
-                      { value: 'symbol', label: '💹 Symbol', icon: '💹' }
+                      { value: 'duration', label: '⏱️ Trade Duration', icon: '⏱️' }
                     ].map(seg => (
                       <button
                         key={seg.value}
@@ -4538,7 +4539,7 @@ TIME SLOT ANALYSIS
                   </div>
                   <div className={`p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
                     <p className="font-semibold mb-1">⏱️ Interval (minutes)</p>
-                    <p className="text-sm">Select time bucket size: <strong>5m, 15m, 30m, or 60m</strong> - smaller intervals = more detailed analysis</p>
+                    <p className="text-sm">Select time bucket size: <strong>1m, 3m, 5m, 15m, 30m, or 60m</strong> - smaller intervals = more detailed scalping analysis</p>
                   </div>
                   <div className={`p-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
                     <p className="font-semibold mb-1">📈 Show Results</p>
