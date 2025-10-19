@@ -58,6 +58,13 @@ const ModernTradingAnalyzer = () => {
   const [weaknessThreshold, setWeaknessThreshold] = useState(30); // percentage below average
   const [selectedWeakness, setSelectedWeakness] = useState(null);
 
+  // Balanced Optimization State (Phase 7)
+  const [balancedOptimizationResults, setBalancedOptimizationResults] = useState(null);
+  const [optimizationObjective, setOptimizationObjective] = useState('sharpe'); // sharpe, profitfactor, riskadjusted
+  const [maxDrawdownTarget, setMaxDrawdownTarget] = useState(20); // percentage
+  const [minWinRateTarget, setMinWinRateTarget] = useState(40); // percentage
+  const [isBalancedOptimizing, setIsBalancedOptimizing] = useState(false);
+
   const addToast = (message, type = 'info') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
@@ -1434,6 +1441,131 @@ const ModernTradingAnalyzer = () => {
     addToast(`Weakness detection complete: ${weaknesses.length} weaknesses identified`, 'success');
   }, [cachedData, weaknessThreshold]);
 
+  // Balanced Optimization Analysis (Phase 7)
+  const performBalancedOptimization = useCallback(() => {
+    if (!cachedData || !cachedData.completeTrades) return;
+
+    setIsBalancedOptimizing(true);
+
+    try {
+      const trades = cachedData.completeTrades;
+      const configurations = [];
+
+      // Generate optimization scenarios with different parameter combinations
+      const stopLossRange = [0.5, 1, 1.5, 2, 2.5, 3];
+      const takeProfitRange = [1, 2, 3, 4, 5, 6, 8, 10];
+      const tradeFilterRange = [30, 40, 50, 60]; // minimum win rate filter %
+
+      stopLossRange.forEach(sl => {
+        takeProfitRange.forEach(tp => {
+          tradeFilterRange.forEach(minWinRate => {
+            let totalPnL = 0;
+            let wins = 0;
+            let losses = 0;
+            let maxDD = 0;
+            let runningBalance = 0;
+            let peak = 0;
+
+            // Apply configuration to historical trades
+            trades.forEach(trade => {
+              const pnl = parseFloat(trade.pnl) || 0;
+              let adjustedPnL = pnl;
+
+              // Apply stop-loss and take-profit limits
+              if (pnl > tp) {
+                adjustedPnL = tp;
+              } else if (pnl < -sl) {
+                adjustedPnL = -sl;
+              }
+
+              totalPnL += adjustedPnL;
+              runningBalance += adjustedPnL;
+
+              if (adjustedPnL > 0) wins++;
+              else losses++;
+
+              // Track maximum drawdown
+              peak = Math.max(peak, runningBalance);
+              const dd = peak - runningBalance;
+              maxDD = Math.max(maxDD, dd);
+            });
+
+            const totalTrades = wins + losses;
+            const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
+            const profitFactor = losses > 0 ? wins / losses : (wins > 0 ? Infinity : 0);
+            const sharpeRatio = totalTrades > 0 ? (totalPnL / totalTrades) / (Math.abs(maxDD) || 1) : 0;
+            const returnOnDD = maxDD > 0 ? totalPnL / maxDD : (totalPnL > 0 ? Infinity : 0);
+
+            configurations.push({
+              stopLoss: sl,
+              takeProfit: tp,
+              minWinRate,
+              totalPnL: Math.round(totalPnL),
+              winRate: Math.round(winRate * 100) / 100,
+              profitFactor: Math.round(profitFactor * 100) / 100,
+              maxDrawdown: Math.round(maxDD),
+              sharpeRatio: Math.round(sharpeRatio * 100) / 100,
+              returnOnDD: Math.round(returnOnDD * 100) / 100,
+              score: 0 // Will be calculated based on objective
+            });
+          });
+        });
+      });
+
+      // Calculate scores based on optimization objective
+      configurations.forEach(config => {
+        if (optimizationObjective === 'sharpe') {
+          // Maximize Sharpe Ratio
+          config.score = config.sharpeRatio;
+        } else if (optimizationObjective === 'profitfactor') {
+          // Maximize Profit Factor while controlling drawdown
+          config.score = config.profitFactor * (1 - (config.maxDrawdown / 100));
+        } else if (optimizationObjective === 'riskadjusted') {
+          // Maximize risk-adjusted returns (Return on DD)
+          config.score = config.returnOnDD;
+        }
+      });
+
+      // Filter configurations that meet minimum criteria
+      const qualifyingConfigs = configurations.filter(
+        config => config.maxDrawdown <= maxDrawdownTarget && config.winRate >= minWinRateTarget
+      );
+
+      // Sort by score
+      qualifyingConfigs.sort((a, b) => b.score - a.score);
+
+      // Get top 10 configurations
+      const topConfigs = qualifyingConfigs.slice(0, 10);
+
+      // Calculate diversification score (how different are top configs)
+      const diversificationMetrics = {
+        slRange: Math.max(...topConfigs.map(c => c.stopLoss)) - Math.min(...topConfigs.map(c => c.stopLoss)),
+        tpRange: Math.max(...topConfigs.map(c => c.takeProfit)) - Math.min(...topConfigs.map(c => c.takeProfit)),
+        avgScore: topConfigs.reduce((sum, c) => sum + c.score, 0) / topConfigs.length,
+        qualifyingCount: qualifyingConfigs.length
+      };
+
+      setBalancedOptimizationResults({
+        configurations: topConfigs,
+        bestConfig: topConfigs[0],
+        allConfigurations: configurations,
+        qualifyingConfigurations: qualifyingConfigs,
+        diversificationMetrics,
+        objective: optimizationObjective,
+        constraints: {
+          maxDrawdown: maxDrawdownTarget,
+          minWinRate: minWinRateTarget
+        }
+      });
+
+      addToast(`Optimization complete: ${topConfigs.length} optimal configurations found`, 'success');
+    } catch (err) {
+      addToast('Error during optimization: ' + err.message, 'error');
+    } finally {
+      setIsBalancedOptimizing(false);
+    }
+  }, [cachedData, optimizationObjective, maxDrawdownTarget, minWinRateTarget]);
+
   const handleFileUpload = useCallback(async (event) => {
     const uploadedFile = event.target.files[0];
     if (!uploadedFile) return;
@@ -1767,6 +1899,7 @@ TIME SLOT ANALYSIS
     { id: 'optimization', label: 'Exit Optimization', icon: Target },
     { id: 'clustering', label: 'Trade Clustering', icon: Activity },
     { id: 'weakness', label: 'Weakness Detection', icon: AlertCircle },
+    { id: 'balanced', label: 'Balanced Optimization', icon: Settings },
   ];
 
   return (
@@ -4235,6 +4368,177 @@ TIME SLOT ANALYSIS
                 <div className={`${cardBg} rounded-2xl p-12 text-center border ${borderColor}`}>
                   <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     Upload and analyze a strategy to use weakness detection features
+                  </p>
+                </div>
+              )}
+
+              {/* Balanced Optimization Tab (Phase 7) */}
+              {activeTab === 'balanced' && results && (
+                <div className="space-y-6">
+                  {/* Controls */}
+                  <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                    <h3 className={`text-lg font-bold ${textColor} mb-4`}>Balanced Optimization</h3>
+                    <div className="grid grid-cols-4 gap-6">
+                      <div>
+                        <p className={`text-sm font-medium ${textColor} mb-3`}>Optimization Objective</p>
+                        <select
+                          value={optimizationObjective}
+                          onChange={(e) => setOptimizationObjective(e.target.value)}
+                          className={`w-full px-3 py-2 rounded-lg border ${borderColor} ${darkMode ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'}`}
+                        >
+                          <option value="sharpe">Maximize Sharpe Ratio</option>
+                          <option value="profitfactor">Maximize Profit Factor</option>
+                          <option value="riskadjusted">Maximize Risk-Adjusted Returns</option>
+                        </select>
+                      </div>
+                      <div>
+                        <p className={`text-sm font-medium ${textColor} mb-3`}>Max Drawdown: {maxDrawdownTarget}%</p>
+                        <input
+                          type="range"
+                          min="5"
+                          max="50"
+                          step="5"
+                          value={maxDrawdownTarget}
+                          onChange={(e) => setMaxDrawdownTarget(parseInt(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+                      <div>
+                        <p className={`text-sm font-medium ${textColor} mb-3`}>Min Win Rate: {minWinRateTarget}%</p>
+                        <input
+                          type="range"
+                          min="20"
+                          max="80"
+                          step="5"
+                          value={minWinRateTarget}
+                          onChange={(e) => setMinWinRateTarget(parseInt(e.target.value))}
+                          className="w-full"
+                        />
+                      </div>
+                      <div className="flex items-end gap-3">
+                        <button
+                          onClick={performBalancedOptimization}
+                          disabled={isBalancedOptimizing}
+                          className="flex-1 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:bg-gray-500"
+                        >
+                          {isBalancedOptimizing ? 'Optimizing...' : 'Start Optimization'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Optimization Results */}
+                  {balancedOptimizationResults && (
+                    <div className="space-y-6">
+                      {/* Best Configuration */}
+                      <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#6d28d9', border: '2px solid #5b21b6' }}>
+                        <div style={{ color: '#ffffff', textAlign: 'center' }}>
+                          <p style={{ fontSize: '12px', fontWeight: 'bold', opacity: 0.9, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>⭐ BEST BALANCED CONFIGURATION</p>
+                          <p style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '4px' }}>SL: {balancedOptimizationResults.bestConfig.stopLoss}% | TP: {balancedOptimizationResults.bestConfig.takeProfit}% | Min WR: {balancedOptimizationResults.bestConfig.minWinRate}%</p>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginTop: '12px', fontSize: '12px' }}>
+                            <div>
+                              <p style={{ opacity: 0.8 }}>Total P&L</p>
+                              <p style={{ fontSize: '14px', fontWeight: 'bold' }}>₹{balancedOptimizationResults.bestConfig.totalPnL.toLocaleString()}</p>
+                            </div>
+                            <div>
+                              <p style={{ opacity: 0.8 }}>Sharpe Ratio</p>
+                              <p style={{ fontSize: '14px', fontWeight: 'bold' }}>{balancedOptimizationResults.bestConfig.sharpeRatio}</p>
+                            </div>
+                            <div>
+                              <p style={{ opacity: 0.8 }}>Profit Factor</p>
+                              <p style={{ fontSize: '14px', fontWeight: 'bold' }}>{balancedOptimizationResults.bestConfig.profitFactor}</p>
+                            </div>
+                            <div>
+                              <p style={{ opacity: 0.8 }}>Max Drawdown</p>
+                              <p style={{ fontSize: '14px', fontWeight: 'bold' }}>₹{balancedOptimizationResults.bestConfig.maxDrawdown.toLocaleString()}</p>
+                            </div>
+                            <div>
+                              <p style={{ opacity: 0.8 }}>Win Rate</p>
+                              <p style={{ fontSize: '14px', fontWeight: 'bold' }}>{balancedOptimizationResults.bestConfig.winRate}%</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Summary Stats */}
+                      <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                        <h3 className={`text-lg font-bold ${textColor} mb-4`}>📊 Optimization Summary</h3>
+                        <div className="grid grid-cols-5 gap-4">
+                          <div style={{ padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#374151' : '#f0f9ff' }}>
+                            <p style={{ color: darkMode ? '#9ca3af' : '#666', fontSize: '11px', marginBottom: '4px' }}>Qualifying Configs</p>
+                            <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#3b82f6' }}>{balancedOptimizationResults.diversificationMetrics.qualifyingCount}</p>
+                          </div>
+                          <div style={{ padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#374151' : '#f0f9ff' }}>
+                            <p style={{ color: darkMode ? '#9ca3af' : '#666', fontSize: '11px', marginBottom: '4px' }}>Avg Score</p>
+                            <p style={{ fontSize: '18px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{balancedOptimizationResults.diversificationMetrics.avgScore.toFixed(2)}</p>
+                          </div>
+                          <div style={{ padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#374151' : '#f0f9ff' }}>
+                            <p style={{ color: darkMode ? '#9ca3af' : '#666', fontSize: '11px', marginBottom: '4px' }}>SL Range</p>
+                            <p style={{ fontSize: '18px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{balancedOptimizationResults.diversificationMetrics.slRange.toFixed(1)}%</p>
+                          </div>
+                          <div style={{ padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#374151' : '#f0f9ff' }}>
+                            <p style={{ color: darkMode ? '#9ca3af' : '#666', fontSize: '11px', marginBottom: '4px' }}>TP Range</p>
+                            <p style={{ fontSize: '18px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{balancedOptimizationResults.diversificationMetrics.tpRange.toFixed(1)}%</p>
+                          </div>
+                          <div style={{ padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#374151' : '#f0f9ff' }}>
+                            <p style={{ color: darkMode ? '#9ca3af' : '#666', fontSize: '11px', marginBottom: '4px' }}>Objective</p>
+                            <p style={{ fontSize: '18px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937', textTransform: 'capitalize' }}>{balancedOptimizationResults.objective}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Top 10 Configurations Table */}
+                      <div className={`${cardBg} rounded-lg p-6 border ${borderColor} overflow-x-auto`}>
+                        <h3 className={`text-lg font-bold ${textColor} mb-4`}>Top 10 Configurations</h3>
+                        <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ borderBottom: `2px solid ${darkMode ? '#374151' : '#e5e7eb'}` }}>
+                              <th style={{ padding: '12px', textAlign: 'left', color: darkMode ? '#9ca3af' : '#666', fontWeight: 'bold' }}>Rank</th>
+                              <th style={{ padding: '12px', textAlign: 'left', color: darkMode ? '#9ca3af' : '#666', fontWeight: 'bold' }}>SL%</th>
+                              <th style={{ padding: '12px', textAlign: 'left', color: darkMode ? '#9ca3af' : '#666', fontWeight: 'bold' }}>TP%</th>
+                              <th style={{ padding: '12px', textAlign: 'left', color: darkMode ? '#9ca3af' : '#666', fontWeight: 'bold' }}>Min WR%</th>
+                              <th style={{ padding: '12px', textAlign: 'left', color: darkMode ? '#9ca3af' : '#666', fontWeight: 'bold' }}>Total P&L</th>
+                              <th style={{ padding: '12px', textAlign: 'left', color: darkMode ? '#9ca3af' : '#666', fontWeight: 'bold' }}>Sharpe</th>
+                              <th style={{ padding: '12px', textAlign: 'left', color: darkMode ? '#9ca3af' : '#666', fontWeight: 'bold' }}>Profit Factor</th>
+                              <th style={{ padding: '12px', textAlign: 'left', color: darkMode ? '#9ca3af' : '#666', fontWeight: 'bold' }}>Max DD</th>
+                              <th style={{ padding: '12px', textAlign: 'left', color: darkMode ? '#9ca3af' : '#666', fontWeight: 'bold' }}>Win Rate</th>
+                              <th style={{ padding: '12px', textAlign: 'left', color: darkMode ? '#9ca3af' : '#666', fontWeight: 'bold' }}>Score</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {balancedOptimizationResults.configurations.map((config, idx) => (
+                              <tr
+                                key={idx}
+                                style={{
+                                  backgroundColor: idx === 0 ? (darkMode ? 'rgba(109, 40, 217, 0.2)' : 'rgba(109, 40, 217, 0.1)') : 'transparent',
+                                  borderBottom: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`,
+                                  padding: '12px'
+                                }}
+                              >
+                                <td style={{ padding: '12px', color: idx === 0 ? '#8b5cf6' : (darkMode ? '#e5e7eb' : '#1f2937'), fontWeight: idx === 0 ? 'bold' : 'normal' }}>{idx + 1}</td>
+                                <td style={{ padding: '12px', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{config.stopLoss}</td>
+                                <td style={{ padding: '12px', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{config.takeProfit}</td>
+                                <td style={{ padding: '12px', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{config.minWinRate}</td>
+                                <td style={{ padding: '12px', color: config.totalPnL >= 0 ? '#22c55e' : '#ef4444', fontWeight: 'bold' }}>₹{config.totalPnL.toLocaleString()}</td>
+                                <td style={{ padding: '12px', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{config.sharpeRatio}</td>
+                                <td style={{ padding: '12px', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{config.profitFactor}</td>
+                                <td style={{ padding: '12px', color: darkMode ? '#e5e7eb' : '#1f2937' }}>₹{config.maxDrawdown.toLocaleString()}</td>
+                                <td style={{ padding: '12px', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{config.winRate}%</td>
+                                <td style={{ padding: '12px', color: '#8b5cf6', fontWeight: 'bold' }}>{config.score.toFixed(2)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!results && activeTab === 'balanced' && (
+                <div className={`${cardBg} rounded-2xl p-12 text-center border ${borderColor}`}>
+                  <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Upload and analyze a strategy to use balanced optimization features
                   </p>
                 </div>
               )}
