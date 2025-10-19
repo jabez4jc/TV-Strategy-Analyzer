@@ -1350,6 +1350,107 @@ const ModernTradingAnalyzer = () => {
           worstTrade: Math.min(...clusterTrades.map(t => parseFloat(t.pnl) || 0))
         };
       });
+    } else if (clusteringType === 'hourOfDay') {
+      // Cluster by hour of day (0-23)
+      const hourClusters = {};
+      for (let hour = 0; hour < 24; hour++) {
+        hourClusters[hour] = [];
+      }
+
+      trades.forEach(t => {
+        try {
+          const hour = new Date(t.entryTime).getHours();
+          hourClusters[hour].push(t);
+        } catch { }
+      });
+
+      Object.keys(hourClusters).forEach(hour => {
+        const clusterTrades = hourClusters[hour];
+        if (clusterTrades.length === 0) return;
+
+        const hourLabel = `${hour.toString().padStart(2, '0')}:00`;
+        clusters[hourLabel] = clusterTrades;
+
+        const totalPnL = clusterTrades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0);
+        const wins = clusterTrades.filter(t => (parseFloat(t.pnl) || 0) > 0).length;
+
+        clusterMetrics[hourLabel] = {
+          count: clusterTrades.length,
+          totalPnL: Math.round(totalPnL),
+          avgPnL: Math.round(totalPnL / clusterTrades.length),
+          winRate: ((wins / clusterTrades.length) * 100).toFixed(1),
+          percentage: ((clusterTrades.length / trades.length) * 100).toFixed(1),
+          bestTrade: Math.max(...clusterTrades.map(t => parseFloat(t.pnl) || 0)),
+          worstTrade: Math.min(...clusterTrades.map(t => parseFloat(t.pnl) || 0))
+        };
+      });
+    } else if (clusteringType === 'dayOfWeek') {
+      // Cluster by day of week
+      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const dayClusters = {};
+      dayNames.forEach(day => { dayClusters[day] = []; });
+
+      trades.forEach(t => {
+        try {
+          const dayIndex = new Date(t.entryTime).getDay();
+          dayClusters[dayNames[dayIndex]].push(t);
+        } catch { }
+      });
+
+      Object.keys(dayClusters).forEach(dayName => {
+        const clusterTrades = dayClusters[dayName];
+        if (clusterTrades.length === 0) return;
+
+        clusters[dayName] = clusterTrades;
+
+        const totalPnL = clusterTrades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0);
+        const wins = clusterTrades.filter(t => (parseFloat(t.pnl) || 0) > 0).length;
+
+        clusterMetrics[dayName] = {
+          count: clusterTrades.length,
+          totalPnL: Math.round(totalPnL),
+          avgPnL: Math.round(totalPnL / clusterTrades.length),
+          winRate: ((wins / clusterTrades.length) * 100).toFixed(1),
+          percentage: ((clusterTrades.length / trades.length) * 100).toFixed(1),
+          bestTrade: Math.max(...clusterTrades.map(t => parseFloat(t.pnl) || 0)),
+          worstTrade: Math.min(...clusterTrades.map(t => parseFloat(t.pnl) || 0))
+        };
+      });
+    } else if (clusteringType === 'month') {
+      // Cluster by month
+      const monthClusters = {};
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+      trades.forEach(t => {
+        try {
+          const date = new Date(t.entryTime);
+          const monthKey = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+          if (!monthClusters[monthKey]) {
+            monthClusters[monthKey] = [];
+          }
+          monthClusters[monthKey].push(t);
+        } catch { }
+      });
+
+      Object.keys(monthClusters).forEach(monthKey => {
+        const clusterTrades = monthClusters[monthKey];
+        if (clusterTrades.length === 0) return;
+
+        clusters[monthKey] = clusterTrades;
+
+        const totalPnL = clusterTrades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0);
+        const wins = clusterTrades.filter(t => (parseFloat(t.pnl) || 0) > 0).length;
+
+        clusterMetrics[monthKey] = {
+          count: clusterTrades.length,
+          totalPnL: Math.round(totalPnL),
+          avgPnL: Math.round(totalPnL / clusterTrades.length),
+          winRate: ((wins / clusterTrades.length) * 100).toFixed(1),
+          percentage: ((clusterTrades.length / trades.length) * 100).toFixed(1),
+          bestTrade: Math.max(...clusterTrades.map(t => parseFloat(t.pnl) || 0)),
+          worstTrade: Math.min(...clusterTrades.map(t => parseFloat(t.pnl) || 0))
+        };
+      });
     }
 
     // Build correlation data for visualization
@@ -2384,7 +2485,10 @@ TIME SLOT ANALYSIS
                   <div className="space-y-2">
                     {[
                       { value: 'outcome', label: '📊 Outcome (Win/Loss)' },
-                      { value: 'entryPattern', label: '🕐 Entry Pattern' }
+                      { value: 'entryPattern', label: '🕐 Entry Pattern' },
+                      { value: 'hourOfDay', label: '⏰ Hour of Day' },
+                      { value: 'dayOfWeek', label: '📅 Day of Week' },
+                      { value: 'month', label: '📆 Month' }
                     ].map(cluster => (
                       <button
                         key={cluster.value}
@@ -2975,18 +3079,27 @@ TIME SLOT ANALYSIS
 
               {activeTab === 'analytics' && (
                 <div className="space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className={`${cardBg} rounded-lg p-4 border ${borderColor}`}>
-                      <h3 className="font-semibold text-blue-600 mb-2">Sharpe Ratio</h3>
-                      <p className="text-3xl font-bold">{results.sharpeAndSortino.sharpeRatio}</p>
-                      <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'} mt-1`}>Risk-adjusted returns</p>
+                  {isAnalyzing ? (
+                    <div className={`${cardBg} rounded-2xl p-12 text-center border ${borderColor}`}>
+                      <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                      <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Re-analyzing with updated settings...
+                      </p>
                     </div>
-                    <div className={`${cardBg} rounded-lg p-4 border ${borderColor}`}>
-                      <h3 className="font-semibold text-purple-600 mb-2">Sortino Ratio</h3>
-                      <p className="text-3xl font-bold">{results.sharpeAndSortino.sortinoRatio}</p>
-                      <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'} mt-1`}>Downside risk-adjusted</p>
-                    </div>
-                  </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className={`${cardBg} rounded-lg p-4 border ${borderColor}`}>
+                          <h3 className="font-semibold text-blue-600 mb-2">Sharpe Ratio</h3>
+                          <p className="text-3xl font-bold">{results.sharpeAndSortino.sharpeRatio}</p>
+                          <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'} mt-1`}>Risk-adjusted returns</p>
+                        </div>
+                        <div className={`${cardBg} rounded-lg p-4 border ${borderColor}`}>
+                          <h3 className="font-semibold text-purple-600 mb-2">Sortino Ratio</h3>
+                          <p className="text-3xl font-bold">{results.sharpeAndSortino.sortinoRatio}</p>
+                          <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'} mt-1`}>Downside risk-adjusted</p>
+                        </div>
+                      </div>
 
                   {/* Day of Week */}
                   <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
@@ -3100,6 +3213,8 @@ TIME SLOT ANALYSIS
                       </div>
                     </div>
                   </div>
+                    </>
+                  )}
                 </div>
               )}
 
