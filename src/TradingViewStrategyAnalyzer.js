@@ -204,7 +204,7 @@ const ModernTradingAnalyzer = () => {
     }
   };
 
-  const performAnalysis = (completeTrades, fileInfo, dateRange) => {
+  const performAnalysis = useCallback((completeTrades, fileInfo, dateRange) => {
     try {
       let tradesForAnalysis = completeTrades;
       if (intradayOnly) {
@@ -791,7 +791,7 @@ const ModernTradingAnalyzer = () => {
       addToast(err.message, 'error');
       setIsAnalyzing(false);
     }
-  };
+  }, [intradayOnly, timeSlotInterval, analysisType]);
 
   // Calculate metrics for a single strategy (used in comparison)
   const calculateStrategyMetrics = (trades) => {
@@ -1717,7 +1717,7 @@ const ModernTradingAnalyzer = () => {
         setMinWinRateTarget(45);
       }, 500);
     }
-  }, [timeSlotInterval, analysisType, intradayOnly]);
+  }, [cachedData, performAnalysis, timeSlotInterval, analysisType, intradayOnly]);
 
   React.useEffect(() => {
     // Auto-run balanced optimization when defaults are set
