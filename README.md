@@ -341,11 +341,38 @@ For issues or feature requests:
 - ✅ **Improved Data Processing**: More robust analysis capabilities
 - ✅ **Rich Visual Insights**: Interactive charts for all analysis types
 
+## 🧪 Testing & Validation
+
+### Test Files Available
+The application includes comprehensive test files in the `TestCSVFiles/` folder with real trading data:
+
+| File | Trades | P&L | Win Rate | Size | Use Case |
+|------|--------|-----|----------|------|----------|
+| Fibonacci Retracement | 822 | -763K | 25.91% | 199 KB | **Initial testing** |
+| Scalper BANKNIFTY | 2,417 | -2.7M | 24.33% | 592 KB | Medium dataset |
+| VWAP RSI | 6,924 | -8.2M | 14.24% | 1.7 MB | Large dataset |
+| Scalper Bitcoin | 4,974 | 0 | 0% | 1.1 MB | Edge case testing |
+
+**Total:** 15,137 trades across 4 files
+
+### Quick Testing Guide
+1. Open http://localhost:3000
+2. Click "Upload File"
+3. Select a CSV file from `TestCSVFiles/` folder
+4. Verify results appear in all tabs
+5. Test features (heatmaps, optimization, analysis)
+
+### Testing Documentation
+- **FEATURE_TESTING_GUIDE.md** - Complete step-by-step testing instructions
+- **TEST_FILES_INVENTORY.md** - Detailed file analysis and metrics
+- **TEST_VALIDATION_REPORT.md** - Comprehensive validation results
+
+---
+
 ## 🔮 Future Enhancements
 
 Potential improvements that could be added:
-- **Strategy Comparison**: Compare multiple strategy reports side-by-side
-- **Advanced Chart Types**: Candlestick charts, heatmaps, correlation matrices
+- **Advanced Chart Types**: Candlestick charts, correlation matrices
 - **Advanced Filters**: Filter by date ranges, trade sizes, or other criteria
 - **Automated Reporting**: Schedule regular analysis reports
 - **API Integration**: Direct connection to TradingView or broker APIs
@@ -354,9 +381,10 @@ Potential improvements that could be added:
 
 ---
 
-**Last Updated**: October 2024
-**Version**: 2.1 with Enhanced Navigation and Expandable Row Details
-**File Size**: ~170KB (1,934 lines of code)
+**Last Updated**: October 2025
+**Version**: 3.0 with All 7 Analysis Phases Complete
+**File Size**: ~176KB (4,863 lines of code)
+**Test Coverage**: 4 comprehensive test files (15,137 trades)
 **Core Dependencies**:
 - React for UI framework
 - Recharts for interactive data visualization
