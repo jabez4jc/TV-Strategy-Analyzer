@@ -30,7 +30,11 @@ The TradingView Strategy Analyzer is a powerful web application that processes C
 ### 🎛️ Customizable Options
 - **Flexible Time Intervals**: 5, 15, 30, or 60-minute analysis windows
 - **Result Filtering**: Show top 10, 15, 25, 50, 100, or all results
-- **Intraday Filter**: Option to analyze only same-day trades
+- **Intraday Filter**: Option to analyze only same-day trades (entry and exit on same date)
+  - **Applies globally to ALL tabs**: Overview, Heatmaps, Segmentation, Clustering, Optimization, etc.
+  - **Excludes positional trades**: Multi-day positions are filtered out when enabled
+  - **Instant updates**: All analysis re-runs automatically when toggled
+  - **Example**: With Fibonacci test data, filters 822 → 689 trades (excludes 133 multi-day positions)
 - **Multiple Sorting**: Sort by profitability, win rate, or profit factor
 
 ### 🔄 Multi-Strategy Comparison (Phase 1)
@@ -319,9 +323,24 @@ For issues or feature requests:
 3. Verify that your CSV contains both entry and exit trades
 4. Make sure trade numbers match between entry and exit records
 
-## 🎉 Recent Updates (v2.1)
+## 🎉 Recent Updates (v3.1)
 
-### New in Version 2.1:
+### New in Version 3.1:
+- ✅ **CRITICAL FIX: Intraday Only Filter Now Works Globally**
+  - Fixed major bug where Intraday Only filter only applied to Overview tab
+  - All 12 navigation tabs now respect the filter setting consistently
+  - Centralized filter logic with `getFilteredTrades()` helper function
+  - **Impact**: When enabled, excludes multi-day positions from ALL analysis:
+    - Enhanced Heatmaps now show only same-day trades
+    - Segmentation analysis filters correctly
+    - Trade Clustering respects filter
+    - Weakness Detection uses filtered data
+    - Exit Optimization applies filter
+    - Balanced Optimization uses filtered trades
+  - **User Experience**: Check "Intraday Only" → All tabs instantly filter to same-day trades
+  - **Validation**: Tested with real data (822 trades: 83.8% intraday, 16.2% positional)
+
+### Previous Updates (v2.1):
 - ✅ **Horizontal Navigation Bar**: Navigation moved to top of page for better layout
 - ✅ **Expandable Row Details**: Added Show/Hide buttons on all analysis tables
 - ✅ **Weekly/Monthly Performance Metrics**:
