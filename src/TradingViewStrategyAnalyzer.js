@@ -2014,69 +2014,350 @@ TIME SLOT ANALYSIS
           <div className="p-4 space-y-2 overflow-y-auto">
             <div className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'} px-4 py-2 uppercase`}>Configuration</div>
 
-            <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-              <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Analysis Type</p>
-              <select
-                value={analysisType}
-                onChange={(e) => setAnalysisType(e.target.value)}
-                className={`w-full px-2 py-1 rounded text-sm ${darkMode ? 'bg-gray-600 text-white' : 'bg-white text-gray-900'}`}
-              >
-                <option value="combo">Entry→Exit Combo</option>
-                <option value="entry">Entry Time</option>
-                <option value="exit">Exit Time</option>
-              </select>
+            {/* GLOBAL FILTER - Always Visible */}
+            <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-blue-900/30 border-2 border-blue-500' : 'bg-blue-50 border-2 border-blue-400'}`}>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={intradayOnly}
+                  onChange={(e) => setIntradayOnly(e.target.checked)}
+                  className="w-4 h-4"
+                />
+                <div>
+                  <span className={`text-sm font-semibold ${darkMode ? 'text-blue-300' : 'text-blue-700'}`}>Intraday Only</span>
+                  <p className={`text-xs ${darkMode ? 'text-blue-400' : 'text-blue-600'} mt-0.5`}>Exclude multi-day trades</p>
+                </div>
+              </label>
             </div>
 
-            <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-              <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Interval (minutes)</p>
-              <div className="grid grid-cols-4 gap-2">
-                {[5, 15, 30, 60].map(interval => (
-                  <button
-                    key={interval}
-                    onClick={() => setTimeSlotInterval(interval)}
-                    className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-                      timeSlotInterval === interval
-                        ? 'bg-blue-500 text-white'
-                        : `${darkMode ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-900'}`
-                    }`}
+            {/* Time-Based Analysis Controls - Only for tabs that use them */}
+            {['overview', 'profitability', 'winrate', 'profitfactor', 'analytics'].includes(activeTab) && (
+              <>
+                <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Analysis Type</p>
+                  <select
+                    value={analysisType}
+                    onChange={(e) => setAnalysisType(e.target.value)}
+                    className={`w-full px-2 py-1 rounded text-sm ${darkMode ? 'bg-gray-600 text-white' : 'bg-white text-gray-900'}`}
                   >
-                    {interval}m
-                  </button>
-                ))}
-              </div>
-            </div>
+                    <option value="combo">Entry→Exit Combo</option>
+                    <option value="entry">Entry Time</option>
+                    <option value="exit">Exit Time</option>
+                  </select>
+                </div>
 
-            <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-              <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Show Results</p>
-              <select
-                value={resultCount}
-                onChange={(e) => {
-                  const newValue = e.target.value === 'all' ? 'all' : parseInt(e.target.value);
-                  setResultCount(newValue);
-                  setCurrentPageProfitability(1);
-                  setCurrentPageWinRate(1);
-                  setCurrentPageProfitFactor(1);
-                }}
-                className={`w-full px-2 py-1 rounded text-sm ${darkMode ? 'bg-gray-600 text-white' : 'bg-white text-gray-900'}`}
-              >
-                <option value={10}>Top 10</option>
-                <option value={15}>Top 15</option>
-                <option value={25}>Top 25</option>
-                <option value={50}>Top 50</option>
-                <option value={100}>Top 100</option>
-                <option value="all">All</option>
-              </select>
-            </div>
+                <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Interval (minutes)</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {[5, 15, 30, 60].map(interval => (
+                      <button
+                        key={interval}
+                        onClick={() => setTimeSlotInterval(interval)}
+                        className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                          timeSlotInterval === interval
+                            ? 'bg-blue-500 text-white'
+                            : `${darkMode ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-900'}`
+                        }`}
+                      >
+                        {interval}m
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-            <label className={`flex items-center gap-2 px-4 py-3 rounded-lg cursor-pointer ${darkMode ? 'hover:bg-gray-700 text-gray-100' : 'hover:bg-gray-100 text-gray-900'} transition-colors`}>
-              <input
-                type="checkbox"
-                checked={intradayOnly}
-                onChange={(e) => setIntradayOnly(e.target.checked)}
-                className="w-4 h-4"
-              />
-              <span className="text-sm">Intraday Only</span>
-            </label>
+                <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Show Results</p>
+                  <select
+                    value={resultCount}
+                    onChange={(e) => {
+                      const newValue = e.target.value === 'all' ? 'all' : parseInt(e.target.value);
+                      setResultCount(newValue);
+                      setCurrentPageProfitability(1);
+                      setCurrentPageWinRate(1);
+                      setCurrentPageProfitFactor(1);
+                    }}
+                    className={`w-full px-2 py-1 rounded text-sm ${darkMode ? 'bg-gray-600 text-white' : 'bg-white text-gray-900'}`}
+                  >
+                    <option value={10}>Top 10</option>
+                    <option value={15}>Top 15</option>
+                    <option value={25}>Top 25</option>
+                    <option value={50}>Top 50</option>
+                    <option value={100}>Top 100</option>
+                    <option value="all">All</option>
+                  </select>
+                </div>
+              </>
+            )}
+
+            {/* Heatmap Configuration - Only visible on heatmap tab */}
+            {activeTab === 'heatmap' && results && (
+              <>
+                <div className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'} px-4 py-2 uppercase mt-4`}>Heatmap Settings</div>
+                <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Time Resolution</p>
+                  <div className="grid grid-cols-5 gap-1">
+                    {[1, 5, 15, 30, 60].map(res => (
+                      <button
+                        key={res}
+                        onClick={() => {
+                          setHeatmapResolution(res);
+                          setTimeout(() => performEnhancedHeatmapAnalysis(), 0);
+                        }}
+                        className={`px-1 py-1 rounded text-xs font-medium transition-colors ${
+                          heatmapResolution === res
+                            ? 'bg-blue-500 text-white'
+                            : `${darkMode ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-900'}`
+                        }`}
+                      >
+                        {res}m
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <p className={`text-xs font-medium mb-3 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Display Metric</p>
+                  {[
+                    { value: 'pnl', label: 'P&L' },
+                    { value: 'winrate', label: 'Win Rate %' },
+                    { value: 'trades', label: 'Trade Count' }
+                  ].map(metric => (
+                    <label key={metric.value} className="flex items-center gap-2 mb-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="heatmapMetric"
+                        value={metric.value}
+                        checked={heatmapMetric === metric.value}
+                        onChange={() => {
+                          setHeatmapMetric(metric.value);
+                          setTimeout(() => performEnhancedHeatmapAnalysis(), 0);
+                        }}
+                        className="w-3 h-3"
+                      />
+                      <span className={`text-sm ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>{metric.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Segmentation Configuration - Only visible on segmentation tab */}
+            {activeTab === 'segmentation' && results && (
+              <>
+                <div className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'} px-4 py-2 uppercase mt-4`}>Segmentation</div>
+                <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Segment By</p>
+                  <div className="space-y-2">
+                    {[
+                      { value: 'day', label: '📅 Day of Week', icon: '📅' },
+                      { value: 'hour', label: '🕐 Hour of Day', icon: '🕐' },
+                      { value: 'direction', label: '📊 P&L Direction', icon: '📊' },
+                      { value: 'duration', label: '⏱️ Trade Duration', icon: '⏱️' },
+                      { value: 'symbol', label: '💹 Symbol', icon: '💹' }
+                    ].map(seg => (
+                      <button
+                        key={seg.value}
+                        onClick={() => {
+                          setSegmentationType(seg.value);
+                          setTimeout(() => performSegmentationAnalysis(), 0);
+                        }}
+                        className={`w-full px-3 py-2 rounded text-xs font-medium transition-colors text-left ${
+                          segmentationType === seg.value
+                            ? 'bg-blue-500 text-white'
+                            : `${darkMode ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-900'}`
+                        }`}
+                      >
+                        {seg.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Exit Optimization Configuration */}
+            {activeTab === 'optimization' && results && (
+              <>
+                <div className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'} px-4 py-2 uppercase mt-4`}>Optimization</div>
+                <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Mode</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {['manual', 'auto'].map(mode => (
+                      <button
+                        key={mode}
+                        onClick={() => setOptimizationMode(mode)}
+                        className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                          optimizationMode === mode
+                            ? 'bg-blue-500 text-white'
+                            : `${darkMode ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-900'}`
+                        }`}
+                      >
+                        {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {optimizationMode === 'manual' && (
+                  <>
+                    <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                      <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Stop Loss %</p>
+                      <input
+                        type="number"
+                        value={stopLossPercent}
+                        onChange={(e) => setStopLossPercent(parseFloat(e.target.value))}
+                        step="0.5"
+                        min="0.5"
+                        max="10"
+                        className={`w-full px-2 py-1 rounded text-sm ${darkMode ? 'bg-gray-600 text-white' : 'bg-white text-gray-900'}`}
+                      />
+                    </div>
+
+                    <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                      <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Take Profit %</p>
+                      <input
+                        type="number"
+                        value={takeProfitPercent}
+                        onChange={(e) => setTakeProfitPercent(parseFloat(e.target.value))}
+                        step="0.5"
+                        min="1"
+                        max="20"
+                        className={`w-full px-2 py-1 rounded text-sm ${darkMode ? 'bg-gray-600 text-white' : 'bg-white text-gray-900'}`}
+                      />
+                    </div>
+                  </>
+                )}
+
+                <button
+                  onClick={performExitOptimization}
+                  disabled={isOptimizing}
+                  className="w-full px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm font-medium disabled:opacity-50"
+                >
+                  {isOptimizing ? 'Optimizing...' : 'Run Optimization'}
+                </button>
+              </>
+            )}
+
+            {/* Clustering Configuration */}
+            {activeTab === 'clustering' && results && (
+              <>
+                <div className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'} px-4 py-2 uppercase mt-4`}>Clustering</div>
+                <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Cluster By</p>
+                  <div className="space-y-2">
+                    {[
+                      { value: 'outcome', label: '📊 Outcome (Win/Loss)' },
+                      { value: 'entryPattern', label: '🕐 Entry Pattern' }
+                    ].map(cluster => (
+                      <button
+                        key={cluster.value}
+                        onClick={() => {
+                          setClusteringType(cluster.value);
+                          setTimeout(() => performTradeClusteringAnalysis(), 0);
+                        }}
+                        className={`w-full px-3 py-2 rounded text-xs font-medium transition-colors text-left ${
+                          clusteringType === cluster.value
+                            ? 'bg-blue-500 text-white'
+                            : `${darkMode ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-900'}`
+                        }`}
+                      >
+                        {cluster.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Weakness Detection Configuration */}
+            {activeTab === 'weakness' && results && (
+              <>
+                <div className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'} px-4 py-2 uppercase mt-4`}>Weakness Detection</div>
+                <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Detection Metric</p>
+                  <select
+                    value={weaknessMetric}
+                    onChange={(e) => setWeaknessMetric(e.target.value)}
+                    className={`w-full px-2 py-1 rounded text-sm ${darkMode ? 'bg-gray-600 text-white' : 'bg-white text-gray-900'}`}
+                  >
+                    <option value="pnl">P&L Deviation</option>
+                    <option value="winrate">Win Rate</option>
+                    <option value="drawdown">Drawdown</option>
+                  </select>
+                </div>
+
+                <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>
+                    Threshold: {weaknessThreshold}%
+                  </p>
+                  <input
+                    type="range"
+                    min="10"
+                    max="80"
+                    step="5"
+                    value={weaknessThreshold}
+                    onChange={(e) => setWeaknessThreshold(parseInt(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+
+                <button
+                  onClick={performWeaknessDetection}
+                  className="w-full px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium"
+                >
+                  Detect Weaknesses
+                </button>
+              </>
+            )}
+
+            {/* Balanced Optimization Configuration */}
+            {activeTab === 'balanced' && results && (
+              <>
+                <div className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'} px-4 py-2 uppercase mt-4`}>Balanced Optimization</div>
+                <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Objective</p>
+                  <select
+                    value={optimizationObjective}
+                    onChange={(e) => setOptimizationObjective(e.target.value)}
+                    className={`w-full px-2 py-1 rounded text-sm ${darkMode ? 'bg-gray-600 text-white' : 'bg-white text-gray-900'}`}
+                  >
+                    <option value="sharpe">Sharpe Ratio</option>
+                    <option value="profitFactor">Profit Factor</option>
+                    <option value="riskAdjusted">Risk-Adjusted Returns</option>
+                  </select>
+                </div>
+
+                <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>
+                    Max Drawdown: {maxDrawdownTarget}%
+                  </p>
+                  <input
+                    type="range"
+                    min="5"
+                    max="50"
+                    step="5"
+                    value={maxDrawdownTarget}
+                    onChange={(e) => setMaxDrawdownTarget(parseInt(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+
+                <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>
+                    Min Win Rate: {minWinRateTarget}%
+                  </p>
+                  <input
+                    type="range"
+                    min="20"
+                    max="80"
+                    step="5"
+                    value={minWinRateTarget}
+                    onChange={(e) => setMinWinRateTarget(parseInt(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+              </>
+            )}
 
             <hr className={`my-4 ${borderColor}`} />
 
@@ -3387,35 +3668,6 @@ TIME SLOT ANALYSIS
               {/* Segmentation Tab (Phase 4) */}
               {activeTab === 'segmentation' && results && (
                 <div className="space-y-6">
-                  {/* Segmentation Type Selector */}
-                  <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
-                    <h3 className={`text-lg font-bold ${textColor} mb-4`}>Segment Analysis By</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                      {[
-                        { id: 'day', label: '📅 Day of Week', icon: 'D' },
-                        { id: 'hour', label: '⏰ Hour of Day', icon: 'H' },
-                        { id: 'direction', label: '📊 P&L Direction', icon: 'P' },
-                        { id: 'duration', label: '⏳ Trade Duration', icon: 'T' },
-                        { id: 'symbol', label: '🎯 Symbol', icon: 'S' }
-                      ].map(option => (
-                        <button
-                          key={option.id}
-                          onClick={() => {
-                            setSegmentationType(option.id);
-                            setTimeout(() => performSegmentationAnalysis(), 0);
-                          }}
-                          className={`px-4 py-3 rounded-lg transition-all font-medium text-sm ${
-                            segmentationType === option.id
-                              ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
-                              : `${darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
                   {/* Segmentation Results */}
                   {segmentationResults && segmentationResults.segments.length > 0 ? (
                     <div className="space-y-6">
@@ -3545,59 +3797,6 @@ TIME SLOT ANALYSIS
               {/* Enhanced Heatmap Tab (Phase 3) */}
               {activeTab === 'heatmap' && results && (
                 <div className="space-y-6">
-                  {/* Controls */}
-                  <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
-                    <h3 className={`text-lg font-bold ${textColor} mb-4`}>Heatmap Configuration</h3>
-                    <div className="grid grid-cols-2 gap-6">
-                      <div>
-                        <p className={`text-sm font-medium ${textColor} mb-3`}>Time Resolution (minutes)</p>
-                        <div className="grid grid-cols-5 gap-2">
-                          {[1, 5, 15, 30, 60].map(res => (
-                            <button
-                              key={res}
-                              onClick={() => {
-                                setHeatmapResolution(res);
-                                setTimeout(() => performEnhancedHeatmapAnalysis(), 0);
-                              }}
-                              className={`px-3 py-2 rounded text-sm font-medium transition-all ${
-                                heatmapResolution === res
-                                  ? 'bg-blue-600 text-white'
-                                  : `${darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`
-                              }`}
-                            >
-                              {res}m
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <p className={`text-sm font-medium ${textColor} mb-3`}>Display Metric</p>
-                        <div className="space-y-2">
-                          {[
-                            { value: 'pnl', label: 'P&L' },
-                            { value: 'winrate', label: 'Win Rate %' },
-                            { value: 'trades', label: 'Trade Count' }
-                          ].map(metric => (
-                            <label key={metric.value} className="flex items-center gap-2 cursor-pointer">
-                              <input
-                                type="radio"
-                                name="metric"
-                                value={metric.value}
-                                checked={heatmapMetric === metric.value}
-                                onChange={(e) => {
-                                  setHeatmapMetric(e.target.value);
-                                  setTimeout(() => performEnhancedHeatmapAnalysis(), 0);
-                                }}
-                                className="w-4 h-4"
-                              />
-                              <span className={`text-sm ${textColor}`}>{metric.label}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
                   {/* COMPREHENSIVE ANALYSIS SECTION - MOVED TO TOP */}
                   {heatmapResults && heatmapResults.data.length > 0 && (
                     <div style={{ marginBottom: '32px', padding: '20px', borderRadius: '12px', backgroundColor: darkMode ? '#1f2937' : '#f9fafb', border: `2px solid ${darkMode ? '#374151' : '#e5e7eb'}` }}>
@@ -4034,64 +4233,6 @@ TIME SLOT ANALYSIS
               {/* Exit & Stop Optimization Tab (Phase 6) */}
               {activeTab === 'optimization' && results && (
                 <div className="space-y-6">
-                  {/* Controls */}
-                  <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
-                    <h3 className={`text-lg font-bold ${textColor} mb-4`}>Exit & Stop Configuration</h3>
-                    <div className="grid grid-cols-3 gap-6">
-                      <div>
-                        <p className={`text-sm font-medium ${textColor} mb-2`}>Stop Loss: {stopLossPercent.toFixed(2)}%</p>
-                        <input
-                          type="range"
-                          min="0.5"
-                          max="5"
-                          step="0.1"
-                          value={stopLossPercent}
-                          onChange={(e) => setStopLossPercent(parseFloat(e.target.value))}
-                          className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <p className={`text-sm font-medium ${textColor} mb-2`}>Take Profit: {takeProfitPercent.toFixed(2)}%</p>
-                        <input
-                          type="range"
-                          min="1"
-                          max="10"
-                          step="0.1"
-                          value={takeProfitPercent}
-                          onChange={(e) => setTakeProfitPercent(parseFloat(e.target.value))}
-                          className="w-full"
-                        />
-                      </div>
-                      <div>
-                        <p className={`text-sm font-medium ${textColor} mb-2`}>Optimization Mode</p>
-                        <select
-                          value={optimizationMode}
-                          onChange={(e) => setOptimizationMode(e.target.value)}
-                          className={`w-full px-3 py-2 rounded ${darkMode ? 'bg-gray-700 text-white' : 'bg-gray-100 text-gray-900'}`}
-                        >
-                          <option value="manual">Manual</option>
-                          <option value="auto">Grid Search (Auto)</option>
-                        </select>
-                      </div>
-                    </div>
-                    <button
-                      onClick={performExitOptimization}
-                      disabled={isOptimizing}
-                      className="w-full mt-4 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 disabled:from-gray-500 disabled:to-gray-500 transition-all font-semibold flex items-center justify-center gap-2"
-                    >
-                      {isOptimizing ? (
-                        <>
-                          <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          Optimizing...
-                        </>
-                      ) : (
-                        <>
-                          🎯 {optimizationMode === 'auto' ? 'Run Grid Search' : 'Calculate P&L'}
-                        </>
-                      )}
-                    </button>
-                  </div>
-
                   {/* Results */}
                   {optimizationResults ? (
                     <div className="space-y-6">
@@ -4178,32 +4319,6 @@ TIME SLOT ANALYSIS
               {/* Trade Clustering Tab (Phase 2) */}
               {activeTab === 'clustering' && results && (
                 <div className="space-y-6">
-                  {/* Controls */}
-                  <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
-                    <h3 className={`text-lg font-bold ${textColor} mb-4`}>Trade Clustering Analysis</h3>
-                    <div className="grid grid-cols-2 gap-6">
-                      <div>
-                        <p className={`text-sm font-medium ${textColor} mb-3`}>Clustering Type</p>
-                        <select
-                          value={clusteringType}
-                          onChange={(e) => setClusteringType(e.target.value)}
-                          className={`w-full px-3 py-2 rounded-lg border ${borderColor} ${darkMode ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'}`}
-                        >
-                          <option value="outcome">Outcome (Winners vs Losers)</option>
-                          <option value="entryPattern">Entry Pattern (Time of Day)</option>
-                        </select>
-                      </div>
-                      <div className="flex items-end gap-3">
-                        <button
-                          onClick={performTradeClusteringAnalysis}
-                          className="flex-1 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                        >
-                          Analyze Clusters
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
                   {/* Clustering Results */}
                   {clusteringResults && (
                     <div className="space-y-6">
@@ -4271,45 +4386,6 @@ TIME SLOT ANALYSIS
               {/* Weakness Detection Tab (Phase 5) */}
               {activeTab === 'weakness' && results && (
                 <div className="space-y-6">
-                  {/* Controls */}
-                  <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
-                    <h3 className={`text-lg font-bold ${textColor} mb-4`}>Weakness Detection</h3>
-                    <div className="grid grid-cols-3 gap-6">
-                      <div>
-                        <p className={`text-sm font-medium ${textColor} mb-3`}>Detection Metric</p>
-                        <select
-                          value={weaknessMetric}
-                          onChange={(e) => setWeaknessMetric(e.target.value)}
-                          className={`w-full px-3 py-2 rounded-lg border ${borderColor} ${darkMode ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'}`}
-                        >
-                          <option value="pnl">P&L Performance</option>
-                          <option value="winrate">Win Rate</option>
-                          <option value="drawdown">Drawdown</option>
-                        </select>
-                      </div>
-                      <div>
-                        <p className={`text-sm font-medium ${textColor} mb-3`}>Weakness Threshold: {weaknessThreshold}%</p>
-                        <input
-                          type="range"
-                          min="10"
-                          max="80"
-                          step="5"
-                          value={weaknessThreshold}
-                          onChange={(e) => setWeaknessThreshold(parseInt(e.target.value))}
-                          className="w-full"
-                        />
-                      </div>
-                      <div className="flex items-end gap-3">
-                        <button
-                          onClick={performWeaknessDetection}
-                          className="flex-1 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
-                        >
-                          Detect Weaknesses
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
                   {/* Weakness Results */}
                   {weaknessResults && (
                     <div className="space-y-6">
