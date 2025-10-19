@@ -131,11 +131,26 @@ const ModernTradingAnalyzer = () => {
     };
   };
 
+  // Helper function to apply intraday filter to trades
+  const getFilteredTrades = useCallback((trades) => {
+    if (!trades) return [];
+
+    if (intradayOnly) {
+      return trades.filter(trade => {
+        const entryDate = new Date(trade.entryTime).toISOString().split('T')[0];
+        const exitDate = new Date(trade.exitTime).toISOString().split('T')[0];
+        return entryDate === exitDate;
+      });
+    }
+
+    return trades;
+  }, [intradayOnly]);
+
   const parseAndCacheData = async (csvText, fileName) => {
     try {
       const lines = csvText.split('\n');
       const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-      
+
       const data = lines.slice(1)
         .filter(line => line.trim())
         .map(line => {
@@ -152,12 +167,12 @@ const ModernTradingAnalyzer = () => {
         });
 
       const fileInfo = parseFileName(fileName);
-      
-      const exitTrades = data.filter(trade => 
+
+      const exitTrades = data.filter(trade =>
         trade.Type && trade.Type.toString().toLowerCase().includes('exit')
       );
-      
-      const entryTrades = data.filter(trade => 
+
+      const entryTrades = data.filter(trade =>
         trade.Type && trade.Type.toString().toLowerCase().includes('entry')
       );
 
@@ -166,13 +181,13 @@ const ModernTradingAnalyzer = () => {
       }
 
       const tradePairs = {};
-      
+
       [...entryTrades, ...exitTrades].forEach(trade => {
         const tradeNum = trade['Trade #'];
         if (!tradePairs[tradeNum]) {
           tradePairs[tradeNum] = {};
         }
-        
+
         if (trade.Type.toLowerCase().includes('entry')) {
           tradePairs[tradeNum].entry = trade;
         } else {
@@ -1000,7 +1015,7 @@ const ModernTradingAnalyzer = () => {
   const performSegmentationAnalysis = useCallback(() => {
     if (!cachedData || !cachedData.completeTrades) return;
 
-    const trades = cachedData.completeTrades;
+    const trades = getFilteredTrades(cachedData.completeTrades);
     let segments = {};
 
     switch (segmentationType) {
@@ -1098,13 +1113,13 @@ const ModernTradingAnalyzer = () => {
     });
 
     addToast(`Segmentation analysis complete: ${segmentAnalysis.length} segments analyzed`, 'success');
-  }, [cachedData, results, segmentationType]);
+  }, [cachedData, results, segmentationType, getFilteredTrades]);
 
   // Enhanced Heatmap Analysis (Phase 3)
   const performEnhancedHeatmapAnalysis = useCallback(() => {
     if (!cachedData || !cachedData.completeTrades) return;
 
-    const trades = cachedData.completeTrades;
+    const trades = getFilteredTrades(cachedData.completeTrades);
     const matrix = {};
 
     trades.forEach(trade => {
@@ -1150,7 +1165,7 @@ const ModernTradingAnalyzer = () => {
     });
 
     addToast(`Heatmap generated: ${heatmapData.length} time slots analyzed`, 'success');
-  }, [cachedData, heatmapResolution, heatmapMetric]);
+  }, [cachedData, heatmapResolution, heatmapMetric, getFilteredTrades]);
 
   // Exit & Stop Optimization (Phase 6)
   const performExitOptimization = useCallback(() => {
@@ -1159,7 +1174,7 @@ const ModernTradingAnalyzer = () => {
     setIsOptimizing(true);
 
     try {
-      const trades = cachedData.completeTrades;
+      const trades = getFilteredTrades(cachedData.completeTrades);
       const results = [];
 
       // If in auto mode, grid search through combinations
@@ -1239,13 +1254,13 @@ const ModernTradingAnalyzer = () => {
     } finally {
       setIsOptimizing(false);
     }
-  }, [cachedData, stopLossPercent, takeProfitPercent, optimizationMode]);
+  }, [cachedData, stopLossPercent, takeProfitPercent, optimizationMode, getFilteredTrades]);
 
   // Trade Clustering & Correlation Analysis (Phase 2)
   const performTradeClusteringAnalysis = useCallback(() => {
     if (!cachedData || !cachedData.completeTrades) return;
 
-    const trades = cachedData.completeTrades;
+    const trades = getFilteredTrades(cachedData.completeTrades);
     const clusters = {};
     let clusterMetrics = {};
 
@@ -1344,13 +1359,13 @@ const ModernTradingAnalyzer = () => {
     });
 
     addToast(`Trade clustering complete: ${Object.keys(clusters).length} clusters identified`, 'success');
-  }, [cachedData, clusteringType]);
+  }, [cachedData, clusteringType, getFilteredTrades]);
 
   // Weakness Detection Analysis (Phase 5)
   const performWeaknessDetection = useCallback(() => {
     if (!cachedData || !cachedData.completeTrades) return;
 
-    const trades = cachedData.completeTrades;
+    const trades = getFilteredTrades(cachedData.completeTrades);
     const weaknesses = [];
     const averageMetrics = {};
 
@@ -1439,7 +1454,7 @@ const ModernTradingAnalyzer = () => {
     });
 
     addToast(`Weakness detection complete: ${weaknesses.length} weaknesses identified`, 'success');
-  }, [cachedData, weaknessThreshold]);
+  }, [cachedData, weaknessThreshold, getFilteredTrades]);
 
   // Balanced Optimization Analysis (Phase 7)
   const performBalancedOptimization = useCallback(() => {
@@ -1448,7 +1463,7 @@ const ModernTradingAnalyzer = () => {
     setIsBalancedOptimizing(true);
 
     try {
-      const trades = cachedData.completeTrades;
+      const trades = getFilteredTrades(cachedData.completeTrades);
       const configurations = [];
 
       // Generate optimization scenarios with different parameter combinations
@@ -1564,7 +1579,7 @@ const ModernTradingAnalyzer = () => {
     } finally {
       setIsBalancedOptimizing(false);
     }
-  }, [cachedData, optimizationObjective, maxDrawdownTarget, minWinRateTarget]);
+  }, [cachedData, optimizationObjective, maxDrawdownTarget, minWinRateTarget, getFilteredTrades]);
 
   const handleFileUpload = useCallback(async (event) => {
     const uploadedFile = event.target.files[0];
