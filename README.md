@@ -28,7 +28,7 @@ The TradingView Strategy Analyzer is a powerful web application that processes C
 - **Interactive Charts**: Powered by Recharts library for responsive, interactive data visualization
 
 ### 🎛️ Customizable Options
-- **Flexible Time Intervals**: 5, 15, 30, or 60-minute analysis windows
+- **Flexible Time Intervals**: 1, 3, 5, 15, 30, or 60-minute analysis windows (includes scalping intervals)
 - **Result Filtering**: Show top 10, 15, 25, 50, 100, or all results
 - **Intraday Filter**: Option to analyze only same-day trades (entry and exit on same date)
   - **Applies globally to ALL tabs**: Overview, Heatmaps, Segmentation, Clustering, Optimization, etc.
@@ -37,14 +37,19 @@ The TradingView Strategy Analyzer is a powerful web application that processes C
   - **Example**: With Fibonacci test data, filters 822 → 689 trades (excludes 133 multi-day positions)
 - **Multiple Sorting**: Sort by profitability, win rate, or profit factor
 
-### 🔄 Multi-Strategy Comparison (Phase 1)
+### 🔄 Multi-Strategy Comparison (Phase 1 - ENHANCED)
 - **Multiple Strategy Upload**: Load and compare up to 5 CSV files simultaneously
+- **Multi-Symbol Warning**: Automatic detection and warning when comparing different instruments (BANKNIFTY vs NIFTY, etc.)
+  - Prominent yellow warning banner with detailed explanation
+  - Lists all symbols being compared
+  - Warns about incomparability due to different volatility and market conditions
 - **Side-by-Side Metrics**: Compare key performance indicators across strategies
 - **Overlay Equity Curves**: Visualize cumulative P&L progression for all strategies
 - **Comprehensive Comparison Table**: Detailed metrics including P&L, win rate, profit factor, Sharpe ratio, and drawdown
 - **Risk vs Return Analysis**: Scatter plot analysis of drawdown vs profitability
 - **Best Strategy Auto-Detection**: Identify winners by multiple metrics (P&L, Win Rate, Profit Factor, Sharpe Ratio)
 - **Performance Rankings**: Automatic ranking of strategies by profit factor
+- **Intraday Filter Integration**: All comparisons respect the global intraday filter setting
 
 ### 📊 Advanced Segmentation (Phase 4)
 - **Multiple Segmentation Types**:
@@ -80,13 +85,18 @@ The TradingView Strategy Analyzer is a powerful web application that processes C
 - **Best Configuration Detection**: Automatically identifies optimal parameters
 - **Before/After Comparison**: Shows current vs optimized performance
 
-### 🔗 Trade Clustering & Correlation (Phase 2 - HIGH VALUE)
-- **Outcome Clustering**: Automatically group and analyze Winners vs Losers
-- **Entry Pattern Clustering**: Morning, Afternoon, Evening session analysis
-- **Cluster Metrics**: Trade count, P&L, average P&L, percentage breakdown
-- **Performance Visualization**: Bar charts comparing cluster performance
+### 🔗 Trade Clustering & Correlation (Phase 2 - ENHANCED)
+- **5 Clustering Types**:
+  - **Outcome**: Winners vs Losers analysis
+  - **Entry Pattern**: Morning, Afternoon, Evening sessions
+  - **Hour of Day**: 24-hour breakdown (00:00 - 23:00)
+  - **Day of Week**: Monday - Sunday performance analysis
+  - **Month**: Monthly performance tracking (Jan 2024, Feb 2024, etc.)
+- **Comprehensive Cluster Metrics**: Trade count, total P&L, average P&L, win rate, best/worst trades
+- **Performance Visualization**: Bar charts comparing cluster performance across all types
 - **Pattern Recognition**: Identify common characteristics of winning trades
-- **Actionable Insights**: Find trading patterns that consistently work
+- **Temporal Insights**: Discover hour-by-hour, day-by-day, and month-by-month patterns
+- **Actionable Insights**: Find trading patterns that consistently work at specific times
 
 ### ⚠️ Weakness Detection (Phase 5 - HIGH VALUE)
 - **Automatic Weakness Identification**: Detects underperforming periods
@@ -323,9 +333,52 @@ For issues or feature requests:
 3. Verify that your CSV contains both entry and exit trades
 4. Make sure trade numbers match between entry and exit records
 
-## 🎉 Recent Updates (v4.0)
+## 🎉 Recent Updates (v5.0)
 
-### New in Version 4.0 - MAJOR UX OVERHAUL:
+### New in Version 5.0 - CRITICAL FIXES & ENHANCEMENTS:
+- ✅ **Configuration Reactivity Improvements** (PHASE 1)
+  - Fixed Weakness Detection metric trigger - instant updates when changing detection settings
+  - Fixed Trade Clustering update delay - no more multiple clicks required
+  - Fixed Segmentation update delay - instant refresh on configuration change
+  - Fixed Balanced Optimization results display - results now show properly
+  - Removed duplicate manual configuration sections - cleaner UI
+  - Made sidebar sticky/fixed - configuration stays visible while scrolling
+  - Fixed Strategy Comparison intraday filter - now applies correctly to multi-strategy analysis
+
+- ✅ **1-Minute & 3-Minute Interval Support** (PHASE 2)
+  - Added ultra-short intervals for scalping strategies
+  - 6 total interval options: 1m, 3m, 5m, 15m, 30m, 60m
+  - Perfect for high-frequency trading analysis
+  - All analysis types support new intervals
+
+- ✅ **Advanced Analytics Loading Indicator** (PHASE 3)
+  - Visual feedback when re-analyzing with updated settings
+  - Spinner animation with "Re-analyzing..." message
+  - Prevents confusion about whether settings are taking effect
+  - Applies to Analysis Type, Interval, and other configuration changes
+
+- ✅ **Enhanced Trade Clustering** (PHASE 3)
+  - **3 NEW clustering types added** (total now 5):
+    - Hour of Day: 24-hour breakdown (00:00 - 23:00)
+    - Day of Week: Monday - Sunday analysis
+    - Month: Monthly performance tracking
+  - Comprehensive metrics for all cluster types
+  - Identify hourly trading patterns
+  - Discover best/worst trading days
+  - Track monthly performance trends
+
+- ✅ **Multi-Symbol Comparison Warning** (PHASE 4)
+  - Automatic detection when comparing different instruments
+  - Prominent yellow warning banner with detailed explanation
+  - Lists all symbols being compared (e.g., "BANKNIFTY, NIFTY")
+  - Warns about incomparability due to different volatility/market conditions
+  - Helps prevent misleading strategy comparisons
+
+- ✅ **Strategy Comparison UX Improvements** (PHASE 2)
+  - Moved to last tab position (makes sense as standalone feature)
+  - Symbol option removed from Segmentation (irrelevant for single file)
+
+### Previous Updates (v4.0 - MAJOR UX OVERHAUL):
 - ✅ **Tab Consolidation: 12 Tabs → 7 Tabs (42% Reduction)**
   - Consolidated related tabs with dynamic view toggles for cleaner navigation
   - Logical feature grouping reduces cognitive load
