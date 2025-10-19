@@ -65,6 +65,12 @@ const ModernTradingAnalyzer = () => {
   const [minWinRateTarget, setMinWinRateTarget] = useState(40); // percentage
   const [isBalancedOptimizing, setIsBalancedOptimizing] = useState(false);
 
+  // Consolidated Tab View State (Phase 2 - Tab Consolidation)
+  const [performanceView, setPerformanceView] = useState('profitability'); // profitability, winrate, profitfactor
+  const [timePatternsView, setTimePatternsView] = useState('segmentation'); // segmentation, heatmap
+  const [optimizationView, setOptimizationView] = useState('exit'); // exit, balanced
+  const [insightsView, setInsightsView] = useState('clustering'); // clustering, weakness
+
   const addToast = (message, type = 'info') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
@@ -1919,19 +1925,15 @@ TIME SLOT ANALYSIS
   const textColor = darkMode ? 'text-gray-100' : 'text-gray-900';
   const borderColor = darkMode ? 'border-gray-700' : 'border-gray-200';
 
+  // CONSOLIDATED NAVIGATION TABS (Reduced from 12 to 7)
   const navTabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
-    { id: 'profitability', label: 'By Profitability', icon: TrendingUp },
-    { id: 'winrate', label: 'By Win Rate', icon: Target },
-    { id: 'profitfactor', label: 'By Profit Factor', icon: Zap },
+    { id: 'performance', label: 'Performance Analysis', icon: TrendingUp },
     { id: 'analytics', label: 'Advanced Analytics', icon: Activity },
     { id: 'comparison', label: 'Strategy Comparison', icon: BarChart3 },
-    { id: 'segmentation', label: 'Segmentation', icon: Activity },
-    { id: 'heatmap', label: 'Enhanced Heatmap', icon: Activity },
-    { id: 'optimization', label: 'Exit Optimization', icon: Target },
-    { id: 'clustering', label: 'Trade Clustering', icon: Activity },
-    { id: 'weakness', label: 'Weakness Detection', icon: AlertCircle },
-    { id: 'balanced', label: 'Balanced Optimization', icon: Settings },
+    { id: 'timepatterns', label: 'Time Patterns', icon: Calendar },
+    { id: 'optimization', label: 'Optimization', icon: Target },
+    { id: 'insights', label: 'Trade Insights', icon: AlertCircle },
   ];
 
   return (
@@ -2031,7 +2033,7 @@ TIME SLOT ANALYSIS
             </div>
 
             {/* Time-Based Analysis Controls - Only for tabs that use them */}
-            {['overview', 'profitability', 'winrate', 'profitfactor', 'analytics'].includes(activeTab) && (
+            {['overview', 'performance', 'analytics'].includes(activeTab) && (
               <>
                 <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
                   <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Analysis Type</p>
@@ -2089,8 +2091,63 @@ TIME SLOT ANALYSIS
               </>
             )}
 
-            {/* Heatmap Configuration - Only visible on heatmap tab */}
-            {activeTab === 'heatmap' && results && (
+            {/* Performance View Toggle - Only on Performance Analysis tab */}
+            {activeTab === 'performance' && results && (
+              <>
+                <div className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'} px-4 py-2 uppercase mt-4`}>View Mode</div>
+                <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <div className="space-y-2">
+                    {[
+                      { value: 'profitability', label: '💰 By Profitability' },
+                      { value: 'winrate', label: '🎯 By Win Rate' },
+                      { value: 'profitfactor', label: '⚡ By Profit Factor' }
+                    ].map(view => (
+                      <button
+                        key={view.value}
+                        onClick={() => setPerformanceView(view.value)}
+                        className={`w-full px-3 py-2 rounded text-xs font-medium transition-colors text-left ${
+                          performanceView === view.value
+                            ? 'bg-blue-500 text-white'
+                            : `${darkMode ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-900'}`
+                        }`}
+                      >
+                        {view.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Time Patterns View Toggle */}
+            {activeTab === 'timepatterns' && results && (
+              <>
+                <div className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'} px-4 py-2 uppercase mt-4`}>Analysis Type</div>
+                <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <div className="space-y-2">
+                    {[
+                      { value: 'segmentation', label: '📊 Segmentation' },
+                      { value: 'heatmap', label: '🔥 Heatmap' }
+                    ].map(view => (
+                      <button
+                        key={view.value}
+                        onClick={() => setTimePatternsView(view.value)}
+                        className={`w-full px-3 py-2 rounded text-xs font-medium transition-colors text-left ${
+                          timePatternsView === view.value
+                            ? 'bg-blue-500 text-white'
+                            : `${darkMode ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-900'}`
+                        }`}
+                      >
+                        {view.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Heatmap Configuration - Only visible when heatmap view is active */}
+            {activeTab === 'timepatterns' && timePatternsView === 'heatmap' && results && (
               <>
                 <div className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'} px-4 py-2 uppercase mt-4`}>Heatmap Settings</div>
                 <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
@@ -2141,8 +2198,8 @@ TIME SLOT ANALYSIS
               </>
             )}
 
-            {/* Segmentation Configuration - Only visible on segmentation tab */}
-            {activeTab === 'segmentation' && results && (
+            {/* Segmentation Configuration - Only visible when segmentation view is active */}
+            {activeTab === 'timepatterns' && timePatternsView === 'segmentation' && results && (
               <>
                 <div className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'} px-4 py-2 uppercase mt-4`}>Segmentation</div>
                 <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
@@ -2175,10 +2232,37 @@ TIME SLOT ANALYSIS
               </>
             )}
 
-            {/* Exit Optimization Configuration */}
+            {/* Optimization View Toggle */}
             {activeTab === 'optimization' && results && (
               <>
-                <div className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'} px-4 py-2 uppercase mt-4`}>Optimization</div>
+                <div className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'} px-4 py-2 uppercase mt-4`}>Optimization Type</div>
+                <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <div className="space-y-2">
+                    {[
+                      { value: 'exit', label: '🎯 Exit & Stop' },
+                      { value: 'balanced', label: '⚖️ Balanced' }
+                    ].map(view => (
+                      <button
+                        key={view.value}
+                        onClick={() => setOptimizationView(view.value)}
+                        className={`w-full px-3 py-2 rounded text-xs font-medium transition-colors text-left ${
+                          optimizationView === view.value
+                            ? 'bg-blue-500 text-white'
+                            : `${darkMode ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-900'}`
+                        }`}
+                      >
+                        {view.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Exit Optimization Configuration - Only when exit view active */}
+            {activeTab === 'optimization' && optimizationView === 'exit' && results && (
+              <>
+                <div className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'} px-4 py-2 uppercase mt-4`}>Exit Settings</div>
                 <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
                   <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Mode</p>
                   <div className="grid grid-cols-2 gap-2">
@@ -2238,8 +2322,35 @@ TIME SLOT ANALYSIS
               </>
             )}
 
-            {/* Clustering Configuration */}
-            {activeTab === 'clustering' && results && (
+            {/* Trade Insights View Toggle */}
+            {activeTab === 'insights' && results && (
+              <>
+                <div className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'} px-4 py-2 uppercase mt-4`}>Analysis Type</div>
+                <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <div className="space-y-2">
+                    {[
+                      { value: 'clustering', label: '🔗 Trade Clustering' },
+                      { value: 'weakness', label: '⚠️ Weakness Detection' }
+                    ].map(view => (
+                      <button
+                        key={view.value}
+                        onClick={() => setInsightsView(view.value)}
+                        className={`w-full px-3 py-2 rounded text-xs font-medium transition-colors text-left ${
+                          insightsView === view.value
+                            ? 'bg-blue-500 text-white'
+                            : `${darkMode ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-900'}`
+                        }`}
+                      >
+                        {view.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Clustering Configuration - Only when clustering view active */}
+            {activeTab === 'insights' && insightsView === 'clustering' && results && (
               <>
                 <div className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'} px-4 py-2 uppercase mt-4`}>Clustering</div>
                 <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
@@ -2269,8 +2380,8 @@ TIME SLOT ANALYSIS
               </>
             )}
 
-            {/* Weakness Detection Configuration */}
-            {activeTab === 'weakness' && results && (
+            {/* Weakness Detection Configuration - Only when weakness view active */}
+            {activeTab === 'insights' && insightsView === 'weakness' && results && (
               <>
                 <div className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'} px-4 py-2 uppercase mt-4`}>Weakness Detection</div>
                 <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
@@ -2310,10 +2421,10 @@ TIME SLOT ANALYSIS
               </>
             )}
 
-            {/* Balanced Optimization Configuration */}
-            {activeTab === 'balanced' && results && (
+            {/* Balanced Optimization Configuration - Only when balanced view active */}
+            {activeTab === 'optimization' && optimizationView === 'balanced' && results && (
               <>
-                <div className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'} px-4 py-2 uppercase mt-4`}>Balanced Optimization</div>
+                <div className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'} px-4 py-2 uppercase mt-4`}>Balanced Settings</div>
                 <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
                   <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Objective</p>
                   <select
@@ -2648,18 +2759,27 @@ TIME SLOT ANALYSIS
                 </div>
               )}
 
-              {/* Profitability Tab */}
-              {activeTab === 'profitability' && (
+              {/* CONSOLIDATED PERFORMANCE ANALYSIS TAB */}
+              {activeTab === 'performance' && (
                 <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
-                  <h3 className={`text-lg font-bold ${textColor} mb-4`}>Most Profitable Time Slots</h3>
+                  <h3 className={`text-lg font-bold ${textColor} mb-4`}>
+                    {performanceView === 'profitability' && 'Most Profitable Time Slots'}
+                    {performanceView === 'winrate' && 'Highest Win Rate Time Slots'}
+                    {performanceView === 'profitfactor' && 'Best Profit Factor Time Slots'}
+                  </h3>
                   <div className="overflow-x-auto">
                     {(() => {
-                      const allData = results.byProfitability;
+                      const allData = performanceView === 'profitability' ? results.byProfitability :
+                                     performanceView === 'winrate' ? results.byWinRate : results.byProfitFactor;
                       const displayLimit = resultCount === 'all' ? allData.length : Math.min(resultCount, allData.length);
                       const dataToDisplay = allData.slice(0, displayLimit);
                       const recordsPerPage = 15;
                       const totalPages = Math.ceil(dataToDisplay.length / recordsPerPage);
-                      const currentData = getPaginatedData(dataToDisplay, currentPageProfitability, recordsPerPage);
+                      const currentPage = performanceView === 'profitability' ? currentPageProfitability :
+                                         performanceView === 'winrate' ? currentPageWinRate : currentPageProfitFactor;
+                      const setCurrentPage = performanceView === 'profitability' ? setCurrentPageProfitability :
+                                            performanceView === 'winrate' ? setCurrentPageWinRate : setCurrentPageProfitFactor;
+                      const currentData = getPaginatedData(dataToDisplay, currentPage, recordsPerPage);
 
                       return (
                         <>
@@ -2685,7 +2805,7 @@ TIME SLOT ANALYSIS
                             <tbody>
                               {currentData.map((slot, idx) => {
                                 const recordsPerPage = 15;
-                                const globalIndex = (currentPageProfitability - 1) * recordsPerPage + idx;
+                                const globalIndex = (currentPage - 1) * recordsPerPage + idx;
                                 return (
                                   <React.Fragment key={globalIndex}>
                                     <tr className={`border-b ${borderColor} hover:${darkMode ? 'bg-gray-700' : 'bg-gray-50'} ${darkMode ? 'text-gray-100' : 'text-gray-900'}`}>
@@ -2773,10 +2893,10 @@ TIME SLOT ANALYSIS
                           {totalPages > 1 && (
                             <div className="mt-6 flex items-center justify-center gap-2">
                               <button
-                                onClick={() => setCurrentPageProfitability(Math.max(1, currentPageProfitability - 1))}
-                                disabled={currentPageProfitability === 1}
+                                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                                disabled={currentPage === 1}
                                 className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                                  currentPageProfitability === 1
+                                  currentPage === 1
                                     ? `${darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`
                                     : `${darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-900 hover:bg-gray-300'}`
                                 }`}
@@ -2787,9 +2907,9 @@ TIME SLOT ANALYSIS
                                 {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                                   <button
                                     key={page}
-                                    onClick={() => setCurrentPageProfitability(page)}
+                                    onClick={() => setCurrentPage(page)}
                                     className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                                      currentPageProfitability === page
+                                      currentPage === page
                                         ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
                                         : `${darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-900 hover:bg-gray-300'}`
                                     }`}
@@ -2799,10 +2919,10 @@ TIME SLOT ANALYSIS
                                 ))}
                               </div>
                               <button
-                                onClick={() => setCurrentPageProfitability(Math.min(totalPages, currentPageProfitability + 1))}
-                                disabled={currentPageProfitability === totalPages}
+                                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                                disabled={currentPage === totalPages}
                                 className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                                  currentPageProfitability === totalPages
+                                  currentPage === totalPages
                                     ? `${darkMode ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-500 cursor-not-allowed'}`
                                     : `${darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-900 hover:bg-gray-300'}`
                                 }`}
@@ -2810,7 +2930,7 @@ TIME SLOT ANALYSIS
                                 Next →
                               </button>
                               <span className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                                Page {currentPageProfitability} of {totalPages}
+                                Page {currentPage} of {totalPages}
                               </span>
                             </div>
                           )}
@@ -2821,351 +2941,6 @@ TIME SLOT ANALYSIS
                 </div>
               )}
 
-              {/* Win Rate Tab */}
-              {activeTab === 'winrate' && (
-                <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
-                  <h3 className={`text-lg font-bold ${textColor} mb-4`}>Highest Win Rate Time Slots</h3>
-                  <div className="overflow-x-auto">
-                    {(() => {
-                      const allData = results.byWinRate;
-                      const displayLimit = resultCount === 'all' ? allData.length : Math.min(resultCount, allData.length);
-                      const dataToDisplay = allData.slice(0, displayLimit);
-                      const pageSize = 15;
-                      const totalPages = Math.ceil(dataToDisplay.length / pageSize);
-                      const currentData = getPaginatedData(dataToDisplay, currentPageWinRate, pageSize);
-
-                      return (
-                        <>
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className={`border-b ${borderColor}`}>
-                                <th className={`text-left py-2 px-2 font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Details</th>
-                                <th className={`text-left py-2 px-2 font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Rank</th>
-                                {analysisType === 'combo' ? (
-                                  <>
-                                    <th className={`text-left py-2 px-2 font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Entry</th>
-                                    <th className={`text-left py-2 px-2 font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Exit</th>
-                                  </>
-                                ) : (
-                                  <th className={`text-left py-2 px-2 font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Time Slot</th>
-                                )}
-                                <th className={`text-right py-2 px-2 font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Win Rate</th>
-                                <th className={`text-right py-2 px-2 font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Trades</th>
-                                <th className={`text-right py-2 px-2 font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Total P&L</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {currentData.map((slot, idx) => {
-                                const globalIndex = (currentPageWinRate - 1) * pageSize + idx;
-                                return (
-                                  <React.Fragment key={globalIndex}>
-                                    <tr className={`border-b ${borderColor} hover:${darkMode ? 'bg-gray-700' : 'bg-gray-50'} ${darkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-                                      <td className="py-2 px-2">
-                                        <button
-                                          onClick={() => toggleExpanded(globalIndex)}
-                                          className="text-blue-600 hover:text-blue-800 text-xs"
-                                        >
-                                          {expandedRows.has(globalIndex) ? 'Hide' : 'Show'}
-                                        </button>
-                                      </td>
-                                      <td className="py-2 px-2 font-bold">#{globalIndex + 1}</td>
-                                      {analysisType === 'combo' ? (
-                                        <>
-                                          <td className={`py-2 px-2 font-mono ${darkMode ? 'text-green-400' : 'text-green-600'} text-xs`}>{slot.entryTimeSlot}</td>
-                                          <td className={`py-2 px-2 font-mono ${darkMode ? 'text-red-400' : 'text-red-600'} text-xs`}>{slot.exitTimeSlot}</td>
-                                        </>
-                                      ) : (
-                                        <td className={`py-2 px-2 font-mono ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>{slot.timeSlot}</td>
-                                      )}
-                                      <td className={`py-2 px-2 text-right font-semibold ${darkMode ? 'text-green-400' : 'text-green-600'}`}>{slot.winRate}%</td>
-                                      <td className={`py-2 px-2 text-right ${darkMode ? 'text-gray-100' : 'text-gray-900'}`}>{slot.tradeCount}</td>
-                                      <td className={`py-2 px-2 text-right font-semibold ${slot.totalPnL >= 0 ? `${darkMode ? 'text-green-400' : 'text-green-600'}` : `${darkMode ? 'text-red-400' : 'text-red-600'}`}`}>
-                                        ₹{slot.totalPnL.toLocaleString()}
-                                      </td>
-                                    </tr>
-                                    {expandedRows.has(globalIndex) && (
-                                      <tr>
-                                        <td colSpan={analysisType === 'combo' ? 8 : 7} className={`py-4 ${darkMode ? 'bg-gray-700' : 'bg-gray-50'} border-b ${borderColor}`}>
-                                          <div className="grid grid-cols-2 gap-6 px-4">
-                                            <div>
-                                              <h5 className="font-semibold text-sm mb-2">Weekly Performance</h5>
-                                              <table className="w-full text-xs">
-                                                <thead>
-                                                  <tr className={`border-b ${borderColor}`}>
-                                                    <th className="text-left py-1">Week</th>
-                                                    <th className="text-right py-1">Win Rate</th>
-                                                    <th className="text-right py-1">Trades</th>
-                                                  </tr>
-                                                </thead>
-                                                <tbody>
-                                                  {slot.weeklyPerformance?.slice(0, 6).map((week, widx) => (
-                                                    <tr key={widx} className={`border-b ${borderColor}`}>
-                                                      <td className="py-1 font-mono">{week.period}</td>
-                                                      <td className="text-right">{week.winRate}%</td>
-                                                      <td className="text-right">{week.trades}</td>
-                                                    </tr>
-                                                  ))}
-                                                </tbody>
-                                              </table>
-                                            </div>
-                                            <div>
-                                              <h5 className="font-semibold text-sm mb-2">Monthly Performance</h5>
-                                              <table className="w-full text-xs">
-                                                <thead>
-                                                  <tr className={`border-b ${borderColor}`}>
-                                                    <th className="text-left py-1">Month</th>
-                                                    <th className="text-right py-1">Win Rate</th>
-                                                    <th className="text-right py-1">Trades</th>
-                                                  </tr>
-                                                </thead>
-                                                <tbody>
-                                                  {slot.monthlyPerformance?.slice(0, 6).map((month, midx) => (
-                                                    <tr key={midx} className={`border-b ${borderColor}`}>
-                                                      <td className="py-1 font-mono">{month.period}</td>
-                                                      <td className="text-right">{month.winRate}%</td>
-                                                      <td className="text-right">{month.trades}</td>
-                                                    </tr>
-                                                  ))}
-                                                </tbody>
-                                              </table>
-                                            </div>
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    )}
-                                  </React.Fragment>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-
-                          {/* Pagination */}
-                          {dataToDisplay.length > pageSize && (
-                            <div className={`mt-6 flex items-center justify-center gap-2 ${darkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-                              <button
-                                onClick={() => setCurrentPageWinRate(Math.max(1, currentPageWinRate - 1))}
-                                disabled={currentPageWinRate === 1}
-                                className={`px-3 py-2 rounded-lg transition-colors ${
-                                  currentPageWinRate === 1
-                                    ? `${darkMode ? 'bg-gray-700 text-gray-500' : 'bg-gray-200 text-gray-400'} cursor-not-allowed`
-                                    : `${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`
-                                }`}
-                              >
-                                Previous
-                              </button>
-
-                              <div className="flex gap-1">
-                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                                  <button
-                                    key={page}
-                                    onClick={() => setCurrentPageWinRate(page)}
-                                    className={`px-3 py-2 rounded-lg transition-colors ${
-                                      currentPageWinRate === page
-                                        ? 'bg-blue-500 text-white'
-                                        : `${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`
-                                    }`}
-                                  >
-                                    {page}
-                                  </button>
-                                ))}
-                              </div>
-
-                              <button
-                                onClick={() => setCurrentPageWinRate(Math.min(totalPages, currentPageWinRate + 1))}
-                                disabled={currentPageWinRate === totalPages}
-                                className={`px-3 py-2 rounded-lg transition-colors ${
-                                  currentPageWinRate === totalPages
-                                    ? `${darkMode ? 'bg-gray-700 text-gray-500' : 'bg-gray-200 text-gray-400'} cursor-not-allowed`
-                                    : `${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`
-                                }`}
-                              >
-                                Next
-                              </button>
-
-                              <span className={`ml-4 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                                Page {currentPageWinRate} of {totalPages}
-                              </span>
-                            </div>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-              )}
-
-              {/* Profit Factor Tab */}
-              {activeTab === 'profitfactor' && (
-                <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
-                  <h3 className={`text-lg font-bold ${textColor} mb-4`}>Best Profit Factor Time Slots</h3>
-                  <div className="overflow-x-auto">
-                    {(() => {
-                      const allData = results.byProfitFactor;
-                      const displayLimit = resultCount === 'all' ? allData.length : Math.min(resultCount, allData.length);
-                      const dataToDisplay = allData.slice(0, displayLimit);
-                      const pageSize = 15;
-                      const totalPages = Math.ceil(dataToDisplay.length / pageSize);
-                      const currentData = getPaginatedData(dataToDisplay, currentPageProfitFactor, pageSize);
-
-                      return (
-                        <>
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className={`border-b ${borderColor}`}>
-                                <th className={`text-left py-2 px-2 font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Details</th>
-                                <th className={`text-left py-2 px-2 font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Rank</th>
-                                {analysisType === 'combo' ? (
-                                  <>
-                                    <th className={`text-left py-2 px-2 font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Entry</th>
-                                    <th className={`text-left py-2 px-2 font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Exit</th>
-                                  </>
-                                ) : (
-                                  <th className={`text-left py-2 px-2 font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Time Slot</th>
-                                )}
-                                <th className={`text-right py-2 px-2 font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Profit Factor</th>
-                                <th className={`text-right py-2 px-2 font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Win Rate</th>
-                                <th className={`text-right py-2 px-2 font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Total P&L</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {currentData.map((slot, idx) => {
-                                const globalIndex = (currentPageProfitFactor - 1) * pageSize + idx;
-                                return (
-                                  <React.Fragment key={globalIndex}>
-                                    <tr className={`border-b ${borderColor} hover:${darkMode ? 'bg-gray-700' : 'bg-gray-50'} ${darkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-                                      <td className="py-2 px-2">
-                                        <button
-                                          onClick={() => toggleExpanded(globalIndex)}
-                                          className="text-blue-600 hover:text-blue-800 text-xs"
-                                        >
-                                          {expandedRows.has(globalIndex) ? 'Hide' : 'Show'}
-                                        </button>
-                                      </td>
-                                      <td className="py-2 px-2 font-bold">#{globalIndex + 1}</td>
-                                      {analysisType === 'combo' ? (
-                                        <>
-                                          <td className={`py-2 px-2 font-mono ${darkMode ? 'text-green-400' : 'text-green-600'} text-xs`}>{slot.entryTimeSlot}</td>
-                                          <td className={`py-2 px-2 font-mono ${darkMode ? 'text-red-400' : 'text-red-600'} text-xs`}>{slot.exitTimeSlot}</td>
-                                        </>
-                                      ) : (
-                                        <td className={`py-2 px-2 font-mono ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>{slot.timeSlot}</td>
-                                      )}
-                                      <td className={`py-2 px-2 text-right font-semibold ${darkMode ? 'text-purple-400' : 'text-purple-600'}`}>{slot.profitFactor}</td>
-                                      <td className={`py-2 px-2 text-right ${darkMode ? 'text-gray-100' : 'text-gray-900'}`}>{slot.winRate}%</td>
-                                      <td className={`py-2 px-2 text-right font-semibold ${slot.totalPnL >= 0 ? `${darkMode ? 'text-green-400' : 'text-green-600'}` : `${darkMode ? 'text-red-400' : 'text-red-600'}`}`}>
-                                        ₹{slot.totalPnL.toLocaleString()}
-                                      </td>
-                                    </tr>
-                                    {expandedRows.has(globalIndex) && (
-                                      <tr>
-                                        <td colSpan={analysisType === 'combo' ? 8 : 7} className={`py-4 ${darkMode ? 'bg-gray-700' : 'bg-gray-50'} border-b ${borderColor}`}>
-                                          <div className="grid grid-cols-2 gap-6 px-4">
-                                            <div>
-                                              <h5 className="font-semibold text-sm mb-2">Weekly Performance</h5>
-                                              <table className="w-full text-xs">
-                                                <thead>
-                                                  <tr className={`border-b ${borderColor}`}>
-                                                    <th className="text-left py-1">Week</th>
-                                                    <th className="text-right py-1">Profit Factor</th>
-                                                    <th className="text-right py-1">Trades</th>
-                                                  </tr>
-                                                </thead>
-                                                <tbody>
-                                                  {slot.weeklyPerformance?.slice(0, 6).map((week, widx) => (
-                                                    <tr key={widx} className={`border-b ${borderColor}`}>
-                                                      <td className="py-1 font-mono">{week.period}</td>
-                                                      <td className="text-right">{week.profitFactor || 'N/A'}</td>
-                                                      <td className="text-right">{week.trades}</td>
-                                                    </tr>
-                                                  ))}
-                                                </tbody>
-                                              </table>
-                                            </div>
-                                            <div>
-                                              <h5 className="font-semibold text-sm mb-2">Monthly Performance</h5>
-                                              <table className="w-full text-xs">
-                                                <thead>
-                                                  <tr className={`border-b ${borderColor}`}>
-                                                    <th className="text-left py-1">Month</th>
-                                                    <th className="text-right py-1">Profit Factor</th>
-                                                    <th className="text-right py-1">Trades</th>
-                                                  </tr>
-                                                </thead>
-                                                <tbody>
-                                                  {slot.monthlyPerformance?.slice(0, 6).map((month, midx) => (
-                                                    <tr key={midx} className={`border-b ${borderColor}`}>
-                                                      <td className="py-1 font-mono">{month.period}</td>
-                                                      <td className="text-right">{month.profitFactor || 'N/A'}</td>
-                                                      <td className="text-right">{month.trades}</td>
-                                                    </tr>
-                                                  ))}
-                                                </tbody>
-                                              </table>
-                                            </div>
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    )}
-                                  </React.Fragment>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-
-                          {/* Pagination */}
-                          {dataToDisplay.length > pageSize && (
-                            <div className={`mt-6 flex items-center justify-center gap-2 ${darkMode ? 'text-gray-100' : 'text-gray-900'}`}>
-                              <button
-                                onClick={() => setCurrentPageProfitFactor(Math.max(1, currentPageProfitFactor - 1))}
-                                disabled={currentPageProfitFactor === 1}
-                                className={`px-3 py-2 rounded-lg transition-colors ${
-                                  currentPageProfitFactor === 1
-                                    ? `${darkMode ? 'bg-gray-700 text-gray-500' : 'bg-gray-200 text-gray-400'} cursor-not-allowed`
-                                    : `${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`
-                                }`}
-                              >
-                                Previous
-                              </button>
-
-                              <div className="flex gap-1">
-                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                                  <button
-                                    key={page}
-                                    onClick={() => setCurrentPageProfitFactor(page)}
-                                    className={`px-3 py-2 rounded-lg transition-colors ${
-                                      currentPageProfitFactor === page
-                                        ? 'bg-blue-500 text-white'
-                                        : `${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`
-                                    }`}
-                                  >
-                                    {page}
-                                  </button>
-                                ))}
-                              </div>
-
-                              <button
-                                onClick={() => setCurrentPageProfitFactor(Math.min(totalPages, currentPageProfitFactor + 1))}
-                                disabled={currentPageProfitFactor === totalPages}
-                                className={`px-3 py-2 rounded-lg transition-colors ${
-                                  currentPageProfitFactor === totalPages
-                                    ? `${darkMode ? 'bg-gray-700 text-gray-500' : 'bg-gray-200 text-gray-400'} cursor-not-allowed`
-                                    : `${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`
-                                }`}
-                              >
-                                Next
-                              </button>
-
-                              <span className={`ml-4 text-sm ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                                Page {currentPageProfitFactor} of {totalPages}
-                              </span>
-                            </div>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-              )}
 
               {activeTab === 'analytics' && (
                 <div className="space-y-6">
@@ -3666,7 +3441,7 @@ TIME SLOT ANALYSIS
               )}
 
               {/* Segmentation Tab (Phase 4) */}
-              {activeTab === 'segmentation' && results && (
+              {activeTab === 'timepatterns' && timePatternsView === 'segmentation' && results && (
                 <div className="space-y-6">
                   {/* Segmentation Results */}
                   {segmentationResults && segmentationResults.segments.length > 0 ? (
@@ -3786,7 +3561,7 @@ TIME SLOT ANALYSIS
                 </div>
               )}
 
-              {!results && activeTab === 'segmentation' && (
+              {!results && activeTab === 'timepatterns' && timePatternsView === 'segmentation' && (
                 <div className={`${cardBg} rounded-2xl p-12 text-center border ${borderColor}`}>
                   <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     Upload and analyze a strategy to use segmentation features
@@ -3795,7 +3570,7 @@ TIME SLOT ANALYSIS
               )}
 
               {/* Enhanced Heatmap Tab (Phase 3) */}
-              {activeTab === 'heatmap' && results && (
+              {activeTab === 'timepatterns' && timePatternsView === 'heatmap' && results && (
                 <div className="space-y-6">
                   {/* COMPREHENSIVE ANALYSIS SECTION - MOVED TO TOP */}
                   {heatmapResults && heatmapResults.data.length > 0 && (
@@ -4222,7 +3997,7 @@ TIME SLOT ANALYSIS
                 </div>
               )}
 
-              {!results && activeTab === 'heatmap' && (
+              {!results && activeTab === 'timepatterns' && timePatternsView === 'heatmap' && (
                 <div className={`${cardBg} rounded-2xl p-12 text-center border ${borderColor}`}>
                   <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     Upload and analyze a strategy to use heatmap features
@@ -4231,7 +4006,7 @@ TIME SLOT ANALYSIS
               )}
 
               {/* Exit & Stop Optimization Tab (Phase 6) */}
-              {activeTab === 'optimization' && results && (
+              {activeTab === 'optimization' && optimizationView === 'exit' && results && (
                 <div className="space-y-6">
                   {/* Results */}
                   {optimizationResults ? (
@@ -4317,7 +4092,7 @@ TIME SLOT ANALYSIS
               )}
 
               {/* Trade Clustering Tab (Phase 2) */}
-              {activeTab === 'clustering' && results && (
+              {activeTab === 'insights' && insightsView === 'clustering' && results && (
                 <div className="space-y-6">
                   {/* Clustering Results */}
                   {clusteringResults && (
@@ -4375,7 +4150,7 @@ TIME SLOT ANALYSIS
                 </div>
               )}
 
-              {!results && activeTab === 'clustering' && (
+              {!results && activeTab === 'insights' && insightsView === 'clustering' && (
                 <div className={`${cardBg} rounded-2xl p-12 text-center border ${borderColor}`}>
                   <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     Upload and analyze a strategy to use clustering features
@@ -4384,7 +4159,7 @@ TIME SLOT ANALYSIS
               )}
 
               {/* Weakness Detection Tab (Phase 5) */}
-              {activeTab === 'weakness' && results && (
+              {activeTab === 'insights' && insightsView === 'weakness' && results && (
                 <div className="space-y-6">
                   {/* Weakness Results */}
                   {weaknessResults && (
@@ -4472,7 +4247,7 @@ TIME SLOT ANALYSIS
                 </div>
               )}
 
-              {!results && activeTab === 'weakness' && (
+              {!results && activeTab === 'insights' && insightsView === 'weakness' && (
                 <div className={`${cardBg} rounded-2xl p-12 text-center border ${borderColor}`}>
                   <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     Upload and analyze a strategy to use weakness detection features
@@ -4481,7 +4256,7 @@ TIME SLOT ANALYSIS
               )}
 
               {/* Balanced Optimization Tab (Phase 7) */}
-              {activeTab === 'balanced' && results && (
+              {activeTab === 'optimization' && optimizationView === 'balanced' && results && (
                 <div className="space-y-6">
                   {/* Auto Optimization Status */}
                   <div style={{ padding: '16px', borderRadius: '8px', backgroundColor: '#10b981', border: '2px solid #059669' }}>
@@ -4704,7 +4479,7 @@ TIME SLOT ANALYSIS
                 </div>
               )}
 
-              {!results && activeTab === 'balanced' && (
+              {!results && activeTab === 'optimization' && optimizationView === 'balanced' && (
                 <div className={`${cardBg} rounded-2xl p-12 text-center border ${borderColor}`}>
                   <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     Upload and analyze a strategy to use balanced optimization features
