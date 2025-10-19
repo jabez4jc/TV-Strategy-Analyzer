@@ -76,6 +76,41 @@ The TradingView Strategy Analyzer is a powerful web application that processes C
 - **Best Configuration Detection**: Automatically identifies optimal parameters
 - **Before/After Comparison**: Shows current vs optimized performance
 
+### 🔗 Trade Clustering & Correlation (Phase 2 - HIGH VALUE)
+- **Outcome Clustering**: Automatically group and analyze Winners vs Losers
+- **Entry Pattern Clustering**: Morning, Afternoon, Evening session analysis
+- **Cluster Metrics**: Trade count, P&L, average P&L, percentage breakdown
+- **Performance Visualization**: Bar charts comparing cluster performance
+- **Pattern Recognition**: Identify common characteristics of winning trades
+- **Actionable Insights**: Find trading patterns that consistently work
+
+### ⚠️ Weakness Detection (Phase 5 - HIGH VALUE)
+- **Automatic Weakness Identification**: Detects underperforming periods
+- **Time-Based Detection**: Hourly weakness analysis (00:00-23:59)
+- **Direction Analysis**: Separate analysis for Long vs Short positions
+- **Configurable Thresholds**: 10% - 80% deviation detection
+- **Severity Classification**: Critical (red), High (orange), Medium (blue) levels
+- **Detailed Metrics**:
+  - Actual vs Expected P&L comparison
+  - Loss amount calculation per weakness
+  - Win rate degradation analysis
+  - Trade count per weakness period
+- **Actionable Recommendations**: Specific periods to avoid or reduce exposure
+
+### ⚙️ Balanced Optimization (Phase 7 - NICE TO HAVE)
+- **Multi-Objective Optimization**:
+  - Maximize Sharpe Ratio (risk-adjusted returns)
+  - Maximize Profit Factor (returns per risk unit)
+  - Maximize Risk-Adjusted Returns (Return on Drawdown)
+- **Constraint-Based Filtering**:
+  - Maximum drawdown limit (5% - 50%)
+  - Minimum win rate requirement (20% - 80%)
+- **Configuration Search**: 192 parameter combinations tested
+- **Smart Ranking**: Top 10 best balanced configurations
+- **Diversification Metrics**: Parameter range analysis and stability scoring
+- **Best Configuration Highlight**: Clear identification of optimal settings
+- **Complete Metrics Table**: All configurations with Sharpe ratio, profit factor, drawdown
+
 ### 📋 Data Export & Visualization
 - **Interactive Charts**: LineCharts, BarCharts, ScatterCharts for visual analysis
 - **PDF Reports**: Generate comprehensive strategy analysis reports with visual elements
@@ -134,12 +169,19 @@ See [STATIC_DEPLOYMENT.md](STATIC_DEPLOYMENT.md) for detailed deployment instruc
    - Choose time interval (5m, 15m, 30m, 60m)
    - Set number of results to display (Top 10, 15, 25, 50, 100, or All)
    - Toggle intraday-only filter if needed
-3. **View Results**: Browse through different tabs:
-   - **Overview**: Summary statistics and key metrics
+3. **View Results**: Browse through 12 specialized analysis tabs:
+   - **Overview**: Summary statistics, key metrics, equity curve, and trading insights
    - **By Profitability**: Most profitable time slots with weekly/monthly breakdown
    - **By Win Rate**: Highest win rate time slots with consistency metrics
    - **By Profit Factor**: Best profit factor time slots with performance breakdown
-   - **Advanced Analytics**: Comprehensive visual analysis with charts and heatmaps
+   - **Advanced Analytics**: Comprehensive visual analysis with Sharpe ratio, Sortino ratio, day/week performance
+   - **Strategy Comparison**: Compare up to 5 strategies side-by-side with overlay charts
+   - **Segmentation**: Analyze performance by day of week, hour of day, direction, duration, symbol
+   - **Enhanced Heatmap**: 2D day×time matrix with 5 resolutions and multiple metrics (Phase 3)
+   - **Exit Optimization**: Test stop-loss/take-profit combinations with grid search (Phase 6)
+   - **Trade Clustering**: Group trades by outcome or entry pattern (Phase 2)
+   - **Weakness Detection**: Identify underperforming periods with severity levels (Phase 5)
+   - **Balanced Optimization**: Multi-objective parameter optimization with constraints (Phase 7)
 4. **Explore Details**: Click "Show" on any row to expand and see:
    - Weekly Performance breakdown (P&L, Win Rate, or Profit Factor)
    - Monthly Performance breakdown (P&L, Win Rate, or Profit Factor)
