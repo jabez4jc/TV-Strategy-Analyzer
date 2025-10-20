@@ -27,6 +27,25 @@ The TradingView Strategy Analyzer is a powerful web application that processes C
 - **Trade Duration Analysis**: Average and median trade holding periods
 - **Interactive Charts**: Powered by Recharts library for responsive, interactive data visualization
 
+### 📊 Comprehensive Executive Summary (NEW - v6.0)
+- **Single-Glance Overview**: All critical insights aggregated from every analysis tab in one view
+- **Overall Performance Dashboard**: 5 key metrics with visual indicators
+  - Total P&L with trade count
+  - Win Rate percentage with winner count
+  - Sharpe Ratio for risk-adjusted returns
+  - Average P&L per trade
+  - Maximum Drawdown amount
+- **4 Key Insight Sections**:
+  - **Performance Analysis**: Best profit slot, highest win rate, best profit factor
+  - **Time Pattern Insights**: Best day of week, best hour range, avg trade duration
+  - **Risk & Reward**: R:R ratio, avg win/loss, consecutive wins/losses
+  - **Direction Analysis**: Long vs Short P&L comparison with better direction indicator
+- **Advanced Analysis Indicators**: Shows which advanced analyses are available with counts
+  - Segmentation, Heatmap, Clustering, Weakness Detection, Optimization
+- **Professional Design**: Gradient background, color-coded sections, icon-based navigation
+- **Actionable Insights**: Instant access to most critical metrics for quick decision-making
+- **Perfect for Reporting**: Executive-level summary suitable for sharing and presentations
+
 ### 🎛️ Customizable Options
 - **Flexible Time Intervals**: 1, 3, 5, 15, 30, or 60-minute analysis windows (includes scalping intervals)
 - **Result Filtering**: Show top 10, 15, 25, 50, 100, or all results
@@ -333,9 +352,30 @@ For issues or feature requests:
 3. Verify that your CSV contains both entry and exit trades
 4. Make sure trade numbers match between entry and exit records
 
-## 🎉 Recent Updates (v5.0)
+## 🎉 Recent Updates (v6.0)
 
-### New in Version 5.0 - CRITICAL FIXES & ENHANCEMENTS:
+### New in Version 6.0 - COMPREHENSIVE EXECUTIVE SUMMARY:
+- ✅ **Executive Summary Dashboard** (MAJOR FEATURE)
+  - Single-glance view of ALL critical insights from every analysis tab
+  - Positioned prominently on Overview tab after Strategy Info
+  - Professional gradient design with color-coded sections
+  - 5 overall performance metrics: Total P&L, Win Rate, Sharpe Ratio, Avg P&L/Trade, Max Drawdown
+  - 4 key insight sections:
+    * Performance Analysis (best profit slot, highest win rate, best profit factor)
+    * Time Pattern Insights (best day/hour, avg duration)
+    * Risk & Reward (R:R ratio, avg win/loss, consecutive streaks)
+    * Direction Analysis (Long vs Short comparison)
+  - Advanced analysis availability indicators with counts
+  - Perfect for executive reporting and quick decision-making
+  - Full dark/light mode support
+
+- ✅ **Selected Strategies Summary Fix**
+  - Fixed incomplete Period and Generated Date fields in Strategy Comparison
+  - Enhanced handleMultiFileUpload() to calculate date ranges
+  - Summary cards now show complete trading period (YYYY-MM-DD to YYYY-MM-DD)
+  - Generation date properly displayed from filename parsing
+
+### Version 5.0 - CRITICAL FIXES & ENHANCEMENTS:
 - ✅ **Configuration Reactivity Improvements** (PHASE 1)
   - Fixed Weakness Detection metric trigger - instant updates when changing detection settings
   - Fixed Trade Clustering update delay - no more multiple clicks required
