@@ -2076,6 +2076,36 @@ TIME SLOT ANALYSIS
   const textColor = darkMode ? 'text-gray-100' : 'text-gray-900';
   const borderColor = darkMode ? 'border-gray-700' : 'border-gray-200';
 
+  // Memoized calculations for Executive Summary (moved to top level to fix hooks order)
+  const executiveSummaryData = useMemo(() => {
+    // Comprehensive null checks for all required data
+    if (!results ||
+        !results.dayOfWeek ||
+        !results.direction ||
+        !results.byProfitability ||
+        !results.byWinRate ||
+        !results.byProfitFactor ||
+        !results.comprehensiveInsights ||
+        !results.comprehensiveInsights.bestEntryTimes ||
+        results.byProfitability.length === 0 ||
+        results.byWinRate.length === 0 ||
+        results.byProfitFactor.length === 0 ||
+        results.comprehensiveInsights.bestEntryTimes.length === 0) {
+      return null;
+    }
+
+    const bestDayOfWeek = Object.entries(results.dayOfWeek)
+      .sort((a, b) => b[1].totalPnL - a[1].totalPnL)[0];
+    const betterDirection = results.direction.long.totalPnL > results.direction.short.totalPnL ? 'Long' : 'Short';
+    const directionDifference = Math.abs(results.direction.long.totalPnL - results.direction.short.totalPnL);
+
+    return {
+      bestDayOfWeek,
+      betterDirection,
+      directionDifference
+    };
+  }, [results]); // Simplified: re-compute when any part of results changes
+
   // CONSOLIDATED NAVIGATION TABS (Reduced from 12 to 7)
   const navTabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -2712,17 +2742,9 @@ TIME SLOT ANALYSIS
                     </div>
                   </div>
 
-                  {/* Memoized calculations for Executive Summary performance */}
-                  {useMemo(() => {
-                    const bestDayOfWeek = Object.entries(results.dayOfWeek)
-                      .sort((a, b) => b[1].totalPnL - a[1].totalPnL)[0];
-                    const betterDirection = results.direction.long.totalPnL > results.direction.short.totalPnL ? 'Long' : 'Short';
-                    const directionDifference = Math.abs(results.direction.long.totalPnL - results.direction.short.totalPnL);
-
-                    return (
-                      <>
-                        {/* COMPREHENSIVE EXECUTIVE SUMMARY */}
-                        <div className={`${cardBg} rounded-xl p-8 border-2 ${darkMode ? 'border-blue-700 bg-gradient-to-br from-blue-900/20 to-purple-900/20' : 'border-blue-300 bg-gradient-to-br from-blue-50 to-purple-50'}`}>
+                  {/* COMPREHENSIVE EXECUTIVE SUMMARY */}
+                  {executiveSummaryData && (
+                    <div className={`${cardBg} rounded-xl p-8 border-2 ${darkMode ? 'border-blue-700 bg-gradient-to-br from-blue-900/20 to-purple-900/20' : 'border-blue-300 bg-gradient-to-br from-blue-50 to-purple-50'}`}>
                     <div className="flex items-center justify-between mb-6">
                       <div>
                         <h2 className={`text-2xl font-bold ${darkMode ? 'text-blue-400' : 'text-blue-700'} mb-1`}>📊 Executive Summary</h2>
@@ -2826,10 +2848,10 @@ TIME SLOT ANALYSIS
                             <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Best Day of Week:</span>
                             <div className="text-right">
                               <p className="font-bold text-green-600">
-                                {bestDayOfWeek[0]}
+                                {executiveSummaryData.bestDayOfWeek[0]}
                               </p>
                               <p className="text-xs text-green-600">
-                                ₹{Math.round(bestDayOfWeek[1].totalPnL).toLocaleString()}
+                                ₹{Math.round(executiveSummaryData.bestDayOfWeek[1].totalPnL).toLocaleString()}
                               </p>
                             </div>
                           </div>
@@ -2916,8 +2938,8 @@ TIME SLOT ANALYSIS
                           <div className="flex justify-between items-center">
                             <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Better Direction:</span>
                             <p className="font-bold text-purple-600">
-                              {betterDirection}
-                              {' '}(₹{directionDifference.toLocaleString()} difference)
+                              {executiveSummaryData.betterDirection}
+                              {' '}(₹{executiveSummaryData.directionDifference.toLocaleString()} difference)
                             </p>
                           </div>
                         </div>
@@ -2969,9 +2991,7 @@ TIME SLOT ANALYSIS
                       </div>
                     )}
                   </div>
-                      </>
-                    );
-                  }, [results.dayOfWeek, results.direction, darkMode, cardBg, borderColor, segmentationResults, heatmapResults, clusteringResults, weaknessResults, balancedOptimizationResults, results.overallPerformance, results.totalTrades, results.byProfitability, results.byWinRate, results.byProfitFactor, results.comprehensiveInsights, results.riskReward, results.sharpeAndSortino])}
+                  )}
 
                   <div className="grid grid-cols-4 gap-4">
                     <KPICard
