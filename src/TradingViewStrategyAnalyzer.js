@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Upload, TrendingUp, Clock, BarChart3, Download, AlertCircle, CheckCircle, Calendar, Target, Activity, FileText, Table, Menu, X, Settings, HelpCircle, Moon, Sun, ChevronDown, ChevronRight, Zap } from 'lucide-react';
+import { Upload, TrendingUp, Clock, BarChart3, Download, AlertCircle, CheckCircle, Calendar, Target, Activity, FileText, Table, Menu, X, Settings, HelpCircle, Moon, Sun, ChevronDown, ChevronRight, Zap, ArrowUpDown } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
 const ModernTradingAnalyzer = () => {
