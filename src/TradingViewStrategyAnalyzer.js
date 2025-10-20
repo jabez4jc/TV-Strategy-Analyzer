@@ -2711,6 +2711,257 @@ TIME SLOT ANALYSIS
                     </div>
                   </div>
 
+                  {/* COMPREHENSIVE EXECUTIVE SUMMARY */}
+                  <div className={`${cardBg} rounded-xl p-8 border-2 ${darkMode ? 'border-blue-700 bg-gradient-to-br from-blue-900/20 to-purple-900/20' : 'border-blue-300 bg-gradient-to-br from-blue-50 to-purple-50'}`}>
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h2 className={`text-2xl font-bold ${darkMode ? 'text-blue-400' : 'text-blue-700'} mb-1`}>📊 Executive Summary</h2>
+                        <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Comprehensive analysis across all performance metrics and insights</p>
+                      </div>
+                      <div className={`px-4 py-2 rounded-lg ${results.overallPerformance.totalPnL >= 0 ? 'bg-green-600' : 'bg-red-600'} text-white font-bold`}>
+                        {results.overallPerformance.totalPnL >= 0 ? '✅ Profitable Strategy' : '⚠️ Losing Strategy'}
+                      </div>
+                    </div>
+
+                    {/* Overall Performance Summary */}
+                    <div className="grid grid-cols-5 gap-4 mb-6">
+                      <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg p-4 border ${borderColor}`}>
+                        <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-2`}>Total P&L</p>
+                        <p className={`text-2xl font-bold ${results.overallPerformance.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          ₹{results.overallPerformance.totalPnL.toLocaleString()}
+                        </p>
+                        <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                          {results.totalTrades} trades
+                        </p>
+                      </div>
+                      <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg p-4 border ${borderColor}`}>
+                        <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-2`}>Win Rate</p>
+                        <p className="text-2xl font-bold text-purple-600">
+                          {results.overallPerformance.winRate}%
+                        </p>
+                        <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                          {Math.round(results.totalTrades * results.overallPerformance.winRate / 100)} winners
+                        </p>
+                      </div>
+                      <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg p-4 border ${borderColor}`}>
+                        <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-2`}>Sharpe Ratio</p>
+                        <p className="text-2xl font-bold text-orange-600">
+                          {results.sharpeAndSortino.sharpeRatio}
+                        </p>
+                        <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                          Risk-adjusted
+                        </p>
+                      </div>
+                      <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg p-4 border ${borderColor}`}>
+                        <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-2`}>Avg P&L/Trade</p>
+                        <p className={`text-2xl font-bold ${(results.overallPerformance.totalPnL / results.totalTrades) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          ₹{Math.round(results.overallPerformance.totalPnL / results.totalTrades).toLocaleString()}
+                        </p>
+                        <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                          Per trade avg
+                        </p>
+                      </div>
+                      <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg p-4 border ${borderColor}`}>
+                        <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-2`}>Max Drawdown</p>
+                        <p className="text-2xl font-bold text-red-600">
+                          ₹{results.comprehensiveInsights.drawdownMetrics.maxDrawdown.toLocaleString()}
+                        </p>
+                        <p className={`text-xs mt-1 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                          Peak to valley
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Key Insights Grid */}
+                    <div className="grid grid-cols-2 gap-6">
+                      {/* Performance Analysis Insights */}
+                      <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg p-5 border ${borderColor}`}>
+                        <h3 className={`font-bold ${darkMode ? 'text-blue-400' : 'text-blue-700'} mb-4 flex items-center gap-2`}>
+                          <TrendingUp size={18} />
+                          Performance Analysis
+                        </h3>
+                        <div className="space-y-3 text-sm">
+                          <div className="flex justify-between items-center">
+                            <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Best Profit Slot:</span>
+                            <div className="text-right">
+                              <p className="font-bold text-green-600">{results.byProfitability[0].timeSlot}</p>
+                              <p className="text-xs text-green-600">₹{results.byProfitability[0].totalPnL.toLocaleString()}</p>
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Highest Win Rate:</span>
+                            <div className="text-right">
+                              <p className="font-bold text-purple-600">{results.byWinRate[0].timeSlot}</p>
+                              <p className="text-xs text-purple-600">{results.byWinRate[0].winRate}% ({results.byWinRate[0].trades} trades)</p>
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Best Profit Factor:</span>
+                            <div className="text-right">
+                              <p className="font-bold text-blue-600">{results.byProfitFactor[0].timeSlot}</p>
+                              <p className="text-xs text-blue-600">PF: {results.byProfitFactor[0].profitFactor}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Time Pattern Insights */}
+                      <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg p-5 border ${borderColor}`}>
+                        <h3 className={`font-bold ${darkMode ? 'text-green-400' : 'text-green-700'} mb-4 flex items-center gap-2`}>
+                          <Clock size={18} />
+                          Time Pattern Insights
+                        </h3>
+                        <div className="space-y-3 text-sm">
+                          <div className="flex justify-between items-center">
+                            <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Best Day of Week:</span>
+                            <div className="text-right">
+                              <p className="font-bold text-green-600">
+                                {Object.entries(results.dayOfWeek)
+                                  .sort((a, b) => b[1].totalPnL - a[1].totalPnL)[0][0]}
+                              </p>
+                              <p className="text-xs text-green-600">
+                                ₹{Math.round(Object.entries(results.dayOfWeek)
+                                  .sort((a, b) => b[1].totalPnL - a[1].totalPnL)[0][1].totalPnL).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Best Hour Range:</span>
+                            <div className="text-right">
+                              <p className="font-bold text-green-600">
+                                {results.comprehensiveInsights.bestEntryTimes[0].timeSlot}
+                              </p>
+                              <p className="text-xs text-green-600">
+                                ₹{results.comprehensiveInsights.bestEntryTimes[0].totalPnL.toLocaleString()} profit
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Avg Trade Duration:</span>
+                            <div className="text-right">
+                              <p className="font-bold text-blue-600">
+                                {results.comprehensiveInsights.tradeDuration.averageDuration} min
+                              </p>
+                              <p className="text-xs text-blue-600">
+                                Fastest: {results.comprehensiveInsights.tradeDuration.fastestTrade} min
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Risk & Reward Analysis */}
+                      <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg p-5 border ${borderColor}`}>
+                        <h3 className={`font-bold ${darkMode ? 'text-orange-400' : 'text-orange-700'} mb-4 flex items-center gap-2`}>
+                          <AlertCircle size={18} />
+                          Risk & Reward
+                        </h3>
+                        <div className="space-y-3 text-sm">
+                          <div className="flex justify-between items-center">
+                            <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>R:R Ratio:</span>
+                            <p className="font-bold text-orange-600">{results.riskReward.riskRewardRatio}</p>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Avg Win:</span>
+                            <p className="font-bold text-green-600">₹{results.riskReward.avgWin.toLocaleString()}</p>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Avg Loss:</span>
+                            <p className="font-bold text-red-600">₹{results.riskReward.avgLoss.toLocaleString()}</p>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Consecutive Wins:</span>
+                            <p className="font-bold text-green-600">{results.comprehensiveInsights.drawdownMetrics.maxConsecutiveWins}</p>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Consecutive Losses:</span>
+                            <p className="font-bold text-red-600">{results.comprehensiveInsights.drawdownMetrics.maxConsecutiveLosses}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Direction & Position Analysis */}
+                      <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg p-5 border ${borderColor}`}>
+                        <h3 className={`font-bold ${darkMode ? 'text-purple-400' : 'text-purple-700'} mb-4 flex items-center gap-2`}>
+                          <ArrowUpDown size={18} />
+                          Direction Analysis
+                        </h3>
+                        <div className="space-y-3 text-sm">
+                          <div className="flex justify-between items-center">
+                            <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Long P&L:</span>
+                            <div className="text-right">
+                              <p className={`font-bold ${results.direction.long.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                ₹{results.direction.long.totalPnL.toLocaleString()}
+                              </p>
+                              <p className="text-xs text-gray-500">{results.direction.long.trades} trades, {results.direction.long.winRate}% WR</p>
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Short P&L:</span>
+                            <div className="text-right">
+                              <p className={`font-bold ${results.direction.short.totalPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                ₹{results.direction.short.totalPnL.toLocaleString()}
+                              </p>
+                              <p className="text-xs text-gray-500">{results.direction.short.trades} trades, {results.direction.short.winRate}% WR</p>
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Better Direction:</span>
+                            <p className="font-bold text-purple-600">
+                              {results.direction.long.totalPnL > results.direction.short.totalPnL ? 'Long' : 'Short'}
+                              {' '}(₹{Math.abs(results.direction.long.totalPnL - results.direction.short.totalPnL).toLocaleString()} difference)
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Advanced Insights Available */}
+                    {(segmentationResults || heatmapResults || clusteringResults || weaknessResults || balancedOptimizationResults) && (
+                      <div className={`mt-6 p-4 rounded-lg border-2 ${darkMode ? 'border-yellow-700 bg-yellow-900/20' : 'border-yellow-300 bg-yellow-50'}`}>
+                        <h4 className={`font-bold ${darkMode ? 'text-yellow-400' : 'text-yellow-700'} mb-3 flex items-center gap-2`}>
+                          <Zap size={16} />
+                          Advanced Analysis Available
+                        </h4>
+                        <div className="grid grid-cols-5 gap-2 text-xs">
+                          {segmentationResults && (
+                            <div className={`p-2 rounded ${darkMode ? 'bg-blue-800' : 'bg-blue-100'} text-center`}>
+                              <p className="font-semibold">📊 Segmentation</p>
+                              <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>{Object.keys(segmentationResults.segments || {}).length} segments</p>
+                            </div>
+                          )}
+                          {heatmapResults && (
+                            <div className={`p-2 rounded ${darkMode ? 'bg-green-800' : 'bg-green-100'} text-center`}>
+                              <p className="font-semibold">🔥 Heatmap</p>
+                              <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>{heatmapResults.data?.length || 0} time slots</p>
+                            </div>
+                          )}
+                          {clusteringResults && (
+                            <div className={`p-2 rounded ${darkMode ? 'bg-purple-800' : 'bg-purple-100'} text-center`}>
+                              <p className="font-semibold">🎯 Clustering</p>
+                              <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>{Object.keys(clusteringResults.clusters || {}).length} clusters</p>
+                            </div>
+                          )}
+                          {weaknessResults && (
+                            <div className={`p-2 rounded ${darkMode ? 'bg-red-800' : 'bg-red-100'} text-center`}>
+                              <p className="font-semibold">⚠️ Weaknesses</p>
+                              <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>{weaknessResults.weaknesses?.length || 0} detected</p>
+                            </div>
+                          )}
+                          {balancedOptimizationResults && (
+                            <div className={`p-2 rounded ${darkMode ? 'bg-orange-800' : 'bg-orange-100'} text-center`}>
+                              <p className="font-semibold">⚖️ Optimization</p>
+                              <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>{balancedOptimizationResults.configurations?.length || 0} configs</p>
+                            </div>
+                          )}
+                        </div>
+                        <p className={`text-xs mt-3 ${darkMode ? 'text-gray-400' : 'text-gray-600'} text-center`}>
+                          💡 Explore other tabs for detailed insights on these advanced analyses
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-4 gap-4">
                     <KPICard
                       title="Total Trades"
