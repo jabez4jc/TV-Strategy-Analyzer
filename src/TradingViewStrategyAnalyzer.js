@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, memo } from 'react';
 import { Upload, TrendingUp, Clock, BarChart3, Download, AlertCircle, CheckCircle, Calendar, Target, Activity, FileText, Table, Menu, X, Settings, HelpCircle, Moon, Sun, ChevronDown, ChevronRight, Zap, ArrowUpDown } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
@@ -2055,7 +2055,8 @@ TIME SLOT ANALYSIS
     );
   };
 
-  const KPICard = ({ title, value, subtitle, icon: Icon, color }) => (
+  // Memoized KPICard component for performance (rendered 5+ times in Executive Summary)
+  const KPICard = memo(({ title, value, subtitle, icon: Icon, color }) => (
     <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg p-4 border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
       <div className="flex items-start justify-between">
         <div>
@@ -2068,7 +2069,7 @@ TIME SLOT ANALYSIS
         </div>
       </div>
     </div>
-  );
+  ));
 
   const bgColor = darkMode ? 'bg-gray-900' : 'bg-gray-50';
   const cardBg = darkMode ? 'bg-gray-800' : 'bg-white';
@@ -2711,8 +2712,17 @@ TIME SLOT ANALYSIS
                     </div>
                   </div>
 
-                  {/* COMPREHENSIVE EXECUTIVE SUMMARY */}
-                  <div className={`${cardBg} rounded-xl p-8 border-2 ${darkMode ? 'border-blue-700 bg-gradient-to-br from-blue-900/20 to-purple-900/20' : 'border-blue-300 bg-gradient-to-br from-blue-50 to-purple-50'}`}>
+                  {/* Memoized calculations for Executive Summary performance */}
+                  {useMemo(() => {
+                    const bestDayOfWeek = Object.entries(results.dayOfWeek)
+                      .sort((a, b) => b[1].totalPnL - a[1].totalPnL)[0];
+                    const betterDirection = results.direction.long.totalPnL > results.direction.short.totalPnL ? 'Long' : 'Short';
+                    const directionDifference = Math.abs(results.direction.long.totalPnL - results.direction.short.totalPnL);
+
+                    return (
+                      <>
+                        {/* COMPREHENSIVE EXECUTIVE SUMMARY */}
+                        <div className={`${cardBg} rounded-xl p-8 border-2 ${darkMode ? 'border-blue-700 bg-gradient-to-br from-blue-900/20 to-purple-900/20' : 'border-blue-300 bg-gradient-to-br from-blue-50 to-purple-50'}`}>
                     <div className="flex items-center justify-between mb-6">
                       <div>
                         <h2 className={`text-2xl font-bold ${darkMode ? 'text-blue-400' : 'text-blue-700'} mb-1`}>📊 Executive Summary</h2>
@@ -2816,12 +2826,10 @@ TIME SLOT ANALYSIS
                             <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Best Day of Week:</span>
                             <div className="text-right">
                               <p className="font-bold text-green-600">
-                                {Object.entries(results.dayOfWeek)
-                                  .sort((a, b) => b[1].totalPnL - a[1].totalPnL)[0][0]}
+                                {bestDayOfWeek[0]}
                               </p>
                               <p className="text-xs text-green-600">
-                                ₹{Math.round(Object.entries(results.dayOfWeek)
-                                  .sort((a, b) => b[1].totalPnL - a[1].totalPnL)[0][1].totalPnL).toLocaleString()}
+                                ₹{Math.round(bestDayOfWeek[1].totalPnL).toLocaleString()}
                               </p>
                             </div>
                           </div>
@@ -2908,8 +2916,8 @@ TIME SLOT ANALYSIS
                           <div className="flex justify-between items-center">
                             <span className={darkMode ? 'text-gray-400' : 'text-gray-600'}>Better Direction:</span>
                             <p className="font-bold text-purple-600">
-                              {results.direction.long.totalPnL > results.direction.short.totalPnL ? 'Long' : 'Short'}
-                              {' '}(₹{Math.abs(results.direction.long.totalPnL - results.direction.short.totalPnL).toLocaleString()} difference)
+                              {betterDirection}
+                              {' '}(₹{directionDifference.toLocaleString()} difference)
                             </p>
                           </div>
                         </div>
@@ -2961,6 +2969,9 @@ TIME SLOT ANALYSIS
                       </div>
                     )}
                   </div>
+                      </>
+                    );
+                  }, [results.dayOfWeek, results.direction, darkMode, cardBg, borderColor, segmentationResults, heatmapResults, clusteringResults, weaknessResults, balancedOptimizationResults, results.overallPerformance, results.totalTrades, results.byProfitability, results.byWinRate, results.byProfitFactor, results.comprehensiveInsights, results.riskReward, results.sharpeAndSortino])}
 
                   <div className="grid grid-cols-4 gap-4">
                     <KPICard
