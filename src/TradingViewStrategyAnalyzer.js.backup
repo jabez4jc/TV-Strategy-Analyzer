@@ -2993,6 +2993,88 @@ TIME SLOT ANALYSIS
                   </div>
                   )}
 
+                  <div className="grid grid-cols-4 gap-4">
+                    <KPICard
+                      title="Total Trades"
+                      value={results.totalTrades.toLocaleString()}
+                      subtitle="Completed trades"
+                      icon={BarChart3}
+                      color="text-blue-600"
+                    />
+                    <KPICard
+                      title="Overall P&L"
+                      value={`₹${results.overallPerformance.totalPnL.toLocaleString()}`}
+                      subtitle={results.overallPerformance.totalPnL >= 0 ? 'Profitable' : 'Loss'}
+                      icon={TrendingUp}
+                      color={results.overallPerformance.totalPnL >= 0 ? 'text-green-500' : `${darkMode ? 'text-red-400' : 'text-red-600'}`}
+                    />
+                    <KPICard
+                      title="Win Rate"
+                      value={`${results.overallPerformance.winRate}%`}
+                      subtitle="Success ratio"
+                      icon={Target}
+                      color="text-purple-600"
+                    />
+                    <KPICard
+                      title="Sharpe Ratio"
+                      value={results.sharpeAndSortino.sharpeRatio}
+                      subtitle="Risk-adjusted returns"
+                      icon={Zap}
+                      color="text-orange-600"
+                    />
+                  </div>
+
+                  {/* Comprehensive Insights */}
+                  <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
+                    <h3 className={`text-lg font-bold ${textColor} mb-6`}>Key Insights</h3>
+                    <div className="grid grid-cols-3 gap-6">
+                      <div className={`${darkMode ? 'bg-gray-700' : 'bg-gray-50'} p-4 rounded-lg`}>
+                        <h4 className={`font-semibold ${darkMode ? 'text-green-400' : 'text-green-600'} mb-3 text-sm`}>Optimal Entry Times</h4>
+                        <div className="space-y-2">
+                          {results.comprehensiveInsights.bestEntryTimes.map((slot, idx) => (
+                            <div key={idx} className="flex justify-between items-center text-sm">
+                              <span className={`font-mono ${darkMode ? 'text-green-400' : 'text-green-600'}`}>#{idx + 1}: {slot.timeSlot}</span>
+                              <span className={`${darkMode ? 'text-green-400' : 'text-green-600'} font-semibold`}>₹{slot.totalPnL.toLocaleString()}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className={`${darkMode ? 'bg-gray-700' : 'bg-gray-50'} p-4 rounded-lg`}>
+                        <h4 className={`font-semibold ${darkMode ? 'text-red-400' : 'text-red-600'} mb-3 text-sm`}>Optimal Exit Times</h4>
+                        <div className="space-y-2">
+                          {results.comprehensiveInsights.bestExitTimes.map((slot, idx) => (
+                            <div key={idx} className="flex justify-between items-center text-sm">
+                              <span className={`font-mono ${darkMode ? 'text-red-400' : 'text-red-600'}`}>#{idx + 1}: {slot.timeSlot}</span>
+                              <span className={`${darkMode ? 'text-red-400' : 'text-red-600'} font-semibold`}>₹{slot.totalPnL.toLocaleString()}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className={`${darkMode ? 'bg-gray-700' : 'bg-gray-50'} p-4 rounded-lg`}>
+                        <h4 className={`font-semibold ${darkMode ? 'text-blue-400' : 'text-blue-600'} mb-3 text-sm`}>Risk Metrics</h4>
+                        <div className={`space-y-2 text-sm ${darkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+                          <div className="flex justify-between">
+                            <span>Avg Win:</span>
+                            <span className={`font-semibold ${darkMode ? 'text-green-400' : 'text-green-600'}`}>₹{results.riskReward.avgWin.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Avg Loss:</span>
+                            <span className={`font-semibold ${darkMode ? 'text-red-400' : 'text-red-600'}`}>₹{results.riskReward.avgLoss.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>R:R Ratio:</span>
+                            <span className="font-semibold">{results.riskReward.riskRewardRatio}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Max Drawdown:</span>
+                            <span className={`font-semibold ${darkMode ? 'text-red-400' : 'text-red-600'}`}>₹{results.comprehensiveInsights.drawdownMetrics.maxDrawdown.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
                   {/* Heatmap Summary & Recommendations */}
                   {heatmapResults && (
