@@ -118,7 +118,7 @@ This application can be easily deployed to [Coolify](https://coolify.io/).
 ### Build Settings
 - **Build Pack**: Nixpacks
 - **Is it a static site?**: ✅ (Checked)
-- **Is it a SPA (Single Page Application)?**: ✅ (Checked)
+- **Is it a SPA (Single Page Application)?**: ✅ Yes, this is a standard Create React App build.
 - **Install Command**: `npm install`
 - **Build Command**: `npm run build`
 - **Publish Directory**: `build`
