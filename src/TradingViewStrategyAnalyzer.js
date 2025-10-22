@@ -1,8 +1,16 @@
 import React, { useState, useCallback, useMemo, memo } from 'react';
 import { Upload, TrendingUp, Clock, BarChart3, Download, AlertCircle, CheckCircle, Calendar, Target, Activity, FileText, Table, Menu, X, Settings, HelpCircle, Moon, Sun, ChevronDown, ChevronRight, Zap, ArrowUpDown } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
+import Toast from './components/Toast';
+import KPICard from './components/KPICard';
+import { useAnalysis } from './hooks/useAnalysis';
+import { useSegmentationAnalysis } from './hooks/useSegmentationAnalysis';
+import { useHeatmapAnalysis } from './hooks/useHeatmapAnalysis';
+import { useExitOptimization } from './hooks/useExitOptimization';
+import { useTradeClusteringAnalysis } from './hooks/useTradeClusteringAnalysis';
+import { useWeaknessDetection } from './hooks/useWeaknessDetection';
 
-const ModernTradingAnalyzer = () => {
+const TradingViewStrategyAnalyzer = () => {
   const [file, setFile] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState(null);
@@ -58,17 +66,10 @@ const ModernTradingAnalyzer = () => {
   const [weaknessThreshold, setWeaknessThreshold] = useState(30); // percentage below average
   const [selectedWeakness, setSelectedWeakness] = useState(null);
 
-  // Balanced Optimization State (Phase 7)
-  const [balancedOptimizationResults, setBalancedOptimizationResults] = useState(null);
-  const [optimizationObjective, setOptimizationObjective] = useState('sharpe'); // sharpe, profitfactor, riskadjusted
-  const [maxDrawdownTarget, setMaxDrawdownTarget] = useState(20); // percentage
-  const [minWinRateTarget, setMinWinRateTarget] = useState(40); // percentage
-  const [isBalancedOptimizing, setIsBalancedOptimizing] = useState(false);
-
   // Consolidated Tab View State (Phase 2 - Tab Consolidation)
   const [performanceView, setPerformanceView] = useState('profitability'); // profitability, winrate, profitfactor
   const [timePatternsView, setTimePatternsView] = useState('segmentation'); // segmentation, heatmap
-  const [optimizationView, setOptimizationView] = useState('exit'); // exit, balanced
+  const [optimizationView, setOptimizationView] = useState('exit');
   const [insightsView, setInsightsView] = useState('clustering'); // clustering, weakness
 
   const addToast = (message, type = 'info') => {
@@ -208,6 +209,7 @@ const ModernTradingAnalyzer = () => {
           entryTime: pair.entry['Date/Time'],
           exitTime: pair.exit['Date/Time'],
           pnl: parseFloat(pair.exit['Net P&L INR']) || 0,
+          entryPrice: parseFloat(pair.entry['Price INR']) || 0,
         }));
 
       if (completeTrades.length === 0) {
@@ -218,601 +220,30 @@ const ModernTradingAnalyzer = () => {
 
       setCachedData({ fileInfo, completeTrades, dateRange });
       setIsAnalyzing(true);
-      performAnalysis(completeTrades, fileInfo, dateRange);
+      handleAnalysis(completeTrades, fileInfo, dateRange);
     } catch (err) {
       addToast(err.message, 'error');
       setIsAnalyzing(false);
     }
   };
 
-  const performAnalysis = useCallback((completeTrades, fileInfo, dateRange) => {
+  const { performAnalysis } = useAnalysis(
+    intradayOnly,
+    timeSlotInterval,
+    analysisType
+  );
+
+  const handleAnalysis = useCallback(async (completeTrades, fileInfo, dateRange) => {
     try {
-      let tradesForAnalysis = completeTrades;
-      if (intradayOnly) {
-        tradesForAnalysis = completeTrades.filter(trade => {
-          const entryDate = new Date(trade.entryTime).toISOString().split('T')[0];
-          const exitDate = new Date(trade.exitTime).toISOString().split('T')[0];
-          return entryDate === exitDate;
-        });
-
-        if (tradesForAnalysis.length === 0) {
-          throw new Error('No intraday trades found.');
-        }
-      }
-
-      const getWeekKey = (dateStr) => {
-        const date = new Date(dateStr);
-        if (isNaN(date.getTime())) return null;
-        const year = date.getFullYear();
-        const week = Math.ceil((date.getTime() - new Date(year, 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000));
-        return `${year}-W${week.toString().padStart(2, '0')}`;
-      };
-
-      const getMonthKey = (dateStr) => {
-        const date = new Date(dateStr);
-        if (isNaN(date.getTime())) return null;
-        return `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-      };
-
-      const getTimeSlot = (dateTimeStr, intervalMinutes) => {
-        const date = new Date(dateTimeStr);
-        if (isNaN(date.getTime())) {
-          const parts = dateTimeStr.split(' ');
-          if (parts.length >= 2) {
-            const timePart = parts[1];
-            const timeComponents = timePart.split(':');
-            if (timeComponents.length >= 2) {
-              const hours = parseInt(timeComponents[0]);
-              const minutes = parseInt(timeComponents[1]);
-              const slotMinutes = Math.floor(minutes / intervalMinutes) * intervalMinutes;
-              return `${hours.toString().padStart(2, '0')}:${slotMinutes.toString().padStart(2, '0')}`;
-            }
-          }
-        } else {
-          const hours = date.getHours();
-          const minutes = date.getMinutes();
-          const slotMinutes = Math.floor(minutes / intervalMinutes) * intervalMinutes;
-          return `${hours.toString().padStart(2, '0')}:${slotMinutes.toString().padStart(2, '0')}`;
-        }
-        return null;
-      };
-
-      let tradesWithSlots;
-      
-      if (analysisType === 'combo') {
-        tradesWithSlots = tradesForAnalysis
-          .map(trade => {
-            const entrySlot = getTimeSlot(trade.entryTime, timeSlotInterval);
-            const exitSlot = getTimeSlot(trade.exitTime, timeSlotInterval);
-            return {
-              ...trade,
-              entryTimeSlot: entrySlot,
-              exitTimeSlot: exitSlot,
-              timeSlot: entrySlot && exitSlot ? `${entrySlot} → ${exitSlot}` : null
-            };
-          })
-          .filter(trade => trade.timeSlot && !isNaN(trade.pnl));
-      } else {
-        tradesWithSlots = tradesForAnalysis
-          .map(trade => ({
-            ...trade,
-            analysisTime: analysisType === 'entry' ? trade.entryTime : trade.exitTime,
-            timeSlot: getTimeSlot(analysisType === 'entry' ? trade.entryTime : trade.exitTime, timeSlotInterval)
-          }))
-          .filter(trade => trade.timeSlot && !isNaN(trade.pnl));
-      }
-
-      if (tradesWithSlots.length === 0) {
-        throw new Error('No valid trades with proper timestamps.');
-      }
-
-      const tradesBySlot = {};
-      tradesWithSlots.forEach(trade => {
-        if (!tradesBySlot[trade.timeSlot]) {
-          tradesBySlot[trade.timeSlot] = [];
-        }
-        tradesBySlot[trade.timeSlot].push(trade);
-      });
-
-      const slotPerformance = Object.keys(tradesBySlot).map(slot => {
-        const trades = tradesBySlot[slot];
-        const pnlValues = trades.map(t => t.pnl);
-        
-        const totalPnL = pnlValues.reduce((sum, val) => sum + val, 0);
-        const avgPnL = pnlValues.length > 0 ? totalPnL / pnlValues.length : 0;
-        
-        const winningTrades = pnlValues.filter(p => p > 0);
-        const losingTrades = pnlValues.filter(p => p < 0);
-        
-        const winRate = pnlValues.length > 0 ? (winningTrades.length / pnlValues.length) * 100 : 0;
-        const avgWin = winningTrades.length > 0 ? winningTrades.reduce((sum, val) => sum + val, 0) / winningTrades.length : 0;
-        const avgLoss = losingTrades.length > 0 ? losingTrades.reduce((sum, val) => sum + val, 0) / losingTrades.length : 0;
-        
-        const profitFactor = (avgLoss !== 0 && losingTrades.length > 0) ? 
-          (avgWin * winningTrades.length) / Math.abs(avgLoss * losingTrades.length) : 
-          (winningTrades.length > 0 ? 999 : 0);
-
-        const weeklyBreakdown = {};
-        trades.forEach(trade => {
-          const weekKey = getWeekKey(trade.entryTime);
-          if (weekKey) {
-            if (!weeklyBreakdown[weekKey]) weeklyBreakdown[weekKey] = [];
-            weeklyBreakdown[weekKey].push(trade);
-          }
-        });
-
-        const weeklyPerformance = Object.keys(weeklyBreakdown).map(week => {
-          const weekTrades = weeklyBreakdown[week];
-          const weekPnL = weekTrades.reduce((sum, t) => sum + t.pnl, 0);
-          const weekWinRate = (weekTrades.filter(t => t.pnl > 0).length / weekTrades.length) * 100;
-          return {
-            period: week,
-            trades: weekTrades.length,
-            pnl: Math.round(weekPnL),
-            winRate: Math.round(weekWinRate * 100) / 100
-          };
-        }).sort((a, b) => b.pnl - a.pnl);
-
-        const monthlyBreakdown = {};
-        trades.forEach(trade => {
-          const monthKey = getMonthKey(trade.entryTime);
-          if (monthKey) {
-            if (!monthlyBreakdown[monthKey]) monthlyBreakdown[monthKey] = [];
-            monthlyBreakdown[monthKey].push(trade);
-          }
-        });
-
-        const monthlyPerformance = Object.keys(monthlyBreakdown).map(month => {
-          const monthTrades = monthlyBreakdown[month];
-          const monthPnL = monthTrades.reduce((sum, t) => sum + t.pnl, 0);
-          const monthWinRate = (monthTrades.filter(t => t.pnl > 0).length / monthTrades.length) * 100;
-          return {
-            period: month,
-            trades: monthTrades.length,
-            pnl: Math.round(monthPnL),
-            winRate: Math.round(monthWinRate * 100) / 100
-          };
-        }).sort((a, b) => b.pnl - a.pnl);
-        
-        return {
-          timeSlot: slot,
-          entryTimeSlot: trades[0]?.entryTimeSlot,
-          exitTimeSlot: trades[0]?.exitTimeSlot,
-          tradeCount: trades.length,
-          totalPnL: Math.round(totalPnL),
-          avgPnL: Math.round(avgPnL),
-          winRate: Math.round(winRate * 100) / 100,
-          winningTrades: winningTrades.length,
-          losingTrades: losingTrades.length,
-          avgWin: Math.round(avgWin),
-          avgLoss: Math.round(avgLoss),
-          profitFactor: Math.round(profitFactor * 100) / 100,
-          weeklyPerformance: weeklyPerformance,
-          monthlyPerformance: monthlyPerformance,
-          consistency: {
-            profitableWeeks: weeklyPerformance.filter(w => w.pnl > 0).length,
-            totalWeeks: weeklyPerformance.length,
-            profitableMonths: monthlyPerformance.filter(m => m.pnl > 0).length,
-            totalMonths: monthlyPerformance.length,
-            weeklyConsistency: weeklyPerformance.length > 0 ? (weeklyPerformance.filter(w => w.pnl > 0).length / weeklyPerformance.length) * 100 : 0,
-            monthlyConsistency: monthlyPerformance.length > 0 ? (monthlyPerformance.filter(m => m.pnl > 0).length / monthlyPerformance.length) * 100 : 0
-          }
-        };
-      }).filter(slot => slot.tradeCount >= 2);
-
-      const sortedByPnL = [...slotPerformance].sort((a, b) => b.totalPnL - a.totalPnL);
-      const highVolumeSlots = slotPerformance.filter(slot => slot.tradeCount >= 5);
-      const sortedByWinRate = [...highVolumeSlots].sort((a, b) => b.winRate - a.winRate);
-      const sortedByProfitFactor = [...highVolumeSlots].sort((a, b) => b.profitFactor - a.profitFactor);
-
-      const dayOfWeekAnalysis = () => {
-        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const dayData = {};
-        
-        tradesForAnalysis.forEach(trade => {
-          const date = new Date(trade.entryTime);
-          const dayName = days[date.getDay()];
-          if (!dayData[dayName]) dayData[dayName] = [];
-          dayData[dayName].push(trade);
-        });
-
-        return days.map(day => {
-          const trades = dayData[day] || [];
-          const pnlValues = trades.map(t => t.pnl);
-          const totalPnL = pnlValues.reduce((sum, val) => sum + val, 0);
-          const winRate = trades.length > 0 ? (trades.filter(t => t.pnl > 0).length / trades.length) * 100 : 0;
-          return {
-            day,
-            totalPnL: Math.round(totalPnL),
-            trades: trades.length,
-            winRate: Math.round(winRate * 100) / 100
-          };
-        }).filter(d => d.trades > 0);
-      };
-
-      const hourHeatmapAnalysis = () => {
-        const hourData = {};
-        
-        for (let i = 0; i < 24; i++) {
-          hourData[i] = [];
-        }
-        
-        tradesForAnalysis.forEach(trade => {
-          const date = new Date(trade.entryTime);
-          const hour = date.getHours();
-          hourData[hour].push(trade);
-        });
-
-        return Object.keys(hourData).map(hour => {
-          const trades = hourData[hour];
-          const pnlValues = trades.map(t => t.pnl);
-          const totalPnL = pnlValues.reduce((sum, val) => sum + val, 0);
-          const winRate = trades.length > 0 ? (trades.filter(t => t.pnl > 0).length / trades.length) * 100 : 0;
-          return {
-            hour: parseInt(hour),
-            totalPnL: Math.round(totalPnL),
-            trades: trades.length,
-            winRate: Math.round(winRate * 100) / 100,
-            avgPnL: trades.length > 0 ? Math.round(totalPnL / trades.length) : 0
-          };
-        }).filter(h => h.trades > 0);
-      };
-
-      const getBestWorstTrades = () => {
-        const sorted = [...tradesForAnalysis].sort((a, b) => b.pnl - a.pnl);
-        return {
-          best: sorted.slice(0, 5),
-          worst: sorted.slice(-5).reverse()
-        };
-      };
-
-      const riskRewardAnalysis = () => {
-        const avgWin = tradesForAnalysis.filter(t => t.pnl > 0).reduce((sum, t) => sum + t.pnl, 0) / (tradesForAnalysis.filter(t => t.pnl > 0).length || 1);
-        const avgLoss = Math.abs(tradesForAnalysis.filter(t => t.pnl <= 0).reduce((sum, t) => sum + t.pnl, 0) / (tradesForAnalysis.filter(t => t.pnl <= 0).length || 1));
-        
-        return {
-          avgWin: Math.round(avgWin),
-          avgLoss: Math.round(avgLoss),
-          riskRewardRatio: avgLoss > 0 ? Math.round((avgWin / avgLoss) * 100) / 100 : 0
-        };
-      };
-
-      const equityCurveAnalysis = () => {
-        let cumulative = 0;
-        return tradesForAnalysis.map((trade, index) => {
-          cumulative += trade.pnl;
-          return {
-            tradeNumber: index + 1,
-            equity: Math.round(cumulative),
-            pnl: Math.round(trade.pnl)
-          };
-        });
-      };
-
-      const calculateDrawdownMetrics = () => {
-        let runningPnL = 0;
-        let peak = 0;
-        let maxDrawdown = 0;
-        let currentDrawdown = 0;
-        let consecutiveWins = 0;
-        let consecutiveLosses = 0;
-        let maxConsecutiveWins = 0;
-        let maxConsecutiveLosses = 0;
-        
-        tradesForAnalysis.forEach(trade => {
-          runningPnL += trade.pnl;
-          
-          if (runningPnL > peak) {
-            peak = runningPnL;
-            currentDrawdown = 0;
-          } else {
-            currentDrawdown = peak - runningPnL;
-            maxDrawdown = Math.max(maxDrawdown, currentDrawdown);
-          }
-          
-          if (trade.pnl > 0) {
-            consecutiveWins++;
-            consecutiveLosses = 0;
-            maxConsecutiveWins = Math.max(maxConsecutiveWins, consecutiveWins);
-          } else {
-            consecutiveLosses++;
-            consecutiveWins = 0;
-            maxConsecutiveLosses = Math.max(maxConsecutiveLosses, consecutiveLosses);
-          }
-        });
-        
-        return {
-          maxDrawdown: Math.round(maxDrawdown),
-          maxConsecutiveWins,
-          maxConsecutiveLosses,
-          currentDrawdown: Math.round(currentDrawdown)
-        };
-      };
-
-      const calculateTradeDuration = () => {
-        const durations = tradesForAnalysis.map(trade => {
-          const entry = new Date(trade.entryTime);
-          const exit = new Date(trade.exitTime);
-          return Math.round((exit - entry) / (1000 * 60));
-        }).filter(d => d > 0);
-        
-        const avgDuration = durations.length > 0 ? durations.reduce((sum, d) => sum + d, 0) / durations.length : 0;
-        const medianDuration = durations.length > 0 ? durations.sort((a, b) => a - b)[Math.floor(durations.length / 2)] : 0;
-        
-        return { avgDuration: Math.round(avgDuration), medianDuration, durations };
-      };
-
-      const calculateSharpeAndSortino = () => {
-        const returns = tradesForAnalysis.map(t => t.pnl);
-        const riskFreeRate = 0;
-
-        const meanReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
-        const variance = returns.reduce((sum, r) => sum + Math.pow(r - meanReturn, 2), 0) / returns.length;
-        const stdDev = Math.sqrt(variance);
-
-        const downReturns = returns.filter(r => r < riskFreeRate);
-        const downVariance = downReturns.reduce((sum, r) => sum + Math.pow(r - riskFreeRate, 2), 0) / returns.length;
-        const downStdDev = Math.sqrt(downVariance);
-
-        const sharpeRatio = stdDev !== 0 ? (meanReturn - riskFreeRate) / stdDev : 0;
-        const sortinoRatio = downStdDev !== 0 ? (meanReturn - riskFreeRate) / downStdDev : 0;
-
-        return {
-          sharpeRatio: Math.round(sharpeRatio * 100) / 100,
-          sortinoRatio: Math.round(sortinoRatio * 100) / 100
-        };
-      };
-
-      const durationProfitabilityAnalysis = () => {
-        return tradesForAnalysis.map((trade, index) => {
-          const entry = new Date(trade.entryTime);
-          const exit = new Date(trade.exitTime);
-          const duration = Math.round((exit - entry) / (1000 * 60));
-          return {
-            duration,
-            pnl: trade.pnl,
-            tradeId: index
-          };
-        }).filter(t => t.duration > 0);
-      };
-
-      const directionAnalysis = () => {
-        const longs = tradesForAnalysis.filter(t => t.tradeNumber && parseInt(t.tradeNumber) % 2 === 0);
-        const shorts = tradesForAnalysis.filter(t => t.tradeNumber && parseInt(t.tradeNumber) % 2 === 1);
-        
-        const calculateStats = (trades) => {
-          const pnlValues = trades.map(t => t.pnl);
-          return {
-            trades: trades.length,
-            totalPnL: Math.round(pnlValues.reduce((sum, v) => sum + v, 0)),
-            winRate: trades.length > 0 ? Math.round((trades.filter(t => t.pnl > 0).length / trades.length) * 100 * 100) / 100 : 0,
-            avgPnL: trades.length > 0 ? Math.round(pnlValues.reduce((sum, v) => sum + v, 0) / trades.length) : 0
-          };
-        };
-
-        return {
-          long: calculateStats(longs),
-          short: calculateStats(shorts)
-        };
-      };
-
-      // PHASE 1: Performance Decay Analysis
-      const performanceDecayAnalysis = () => {
-        const quarterSize = Math.floor(tradesForAnalysis.length / 4);
-        const firstQuarter = tradesForAnalysis.slice(0, quarterSize);
-        const lastQuarter = tradesForAnalysis.slice(-quarterSize);
-
-        const analyzeTradeSet = (trades) => {
-          const pnlValues = trades.map(t => t.pnl);
-          return {
-            trades: trades.length,
-            totalPnL: Math.round(pnlValues.reduce((sum, v) => sum + v, 0)),
-            avgPnL: trades.length > 0 ? Math.round(pnlValues.reduce((sum, v) => sum + v, 0) / trades.length) : 0,
-            winRate: trades.length > 0 ? Math.round((trades.filter(t => t.pnl > 0).length / trades.length) * 100 * 100) / 100 : 0
-          };
-        };
-
-        const first = analyzeTradeSet(firstQuarter);
-        const last = analyzeTradeSet(lastQuarter);
-        const decay = {
-          winRateDecay: Math.round((last.winRate - first.winRate) * 100) / 100,
-          avgPnLDecay: last.avgPnL - first.avgPnL,
-          trend: last.avgPnL < first.avgPnL ? 'declining' : 'improving'
-        };
-
-        return { first, last, decay };
-      };
-
-      // PHASE 1: Entry vs Exit Attribution
-      const entryExitAttribution = () => {
-        const midPrice = (entry, exit) => (entry + exit) / 2;
-        
-        let entryEdge = 0;
-        let exitEdge = 0;
-        let count = 0;
-
-        tradesForAnalysis.forEach((trade, idx) => {
-          if (idx > 0 && idx < tradesForAnalysis.length - 1) {
-            const prevClose = tradesForAnalysis[idx - 1].pnl;
-            const nextOpen = tradesForAnalysis[idx + 1].pnl;
-            
-            if (trade.pnl > 0) {
-              entryEdge += Math.min(trade.pnl, Math.abs(Math.max(0, prevClose)));
-              exitEdge += Math.max(0, trade.pnl - Math.abs(prevClose));
-              count++;
-            }
-          }
-        });
-
-        const avgWin = tradesForAnalysis.filter(t => t.pnl > 0).reduce((s, t) => s + t.pnl, 0) / (tradesForAnalysis.filter(t => t.pnl > 0).length || 1);
-        
-        return {
-          entryPercentage: Math.round((entryEdge / (entryEdge + exitEdge || 1)) * 100),
-          exitPercentage: Math.round((exitEdge / (entryEdge + exitEdge || 1)) * 100),
-          insight: entryEdge > exitEdge ? 'Entry timing is your strength' : 'Exit timing is your strength'
-        };
-      };
-
-      // PHASE 1: Trade Clustering Analysis
-      const tradeClusteringAnalysis = () => {
-        let winStreak = 0;
-        let maxWinStreak = 0;
-        let streakCount = 0;
-        let streakLengths = [];
-
-        tradesForAnalysis.forEach((trade, idx) => {
-          if (trade.pnl > 0) {
-            winStreak++;
-          } else {
-            if (winStreak > 0) {
-              streakLengths.push(winStreak);
-              maxWinStreak = Math.max(maxWinStreak, winStreak);
-            }
-            winStreak = 0;
-          }
-        });
-
-        if (winStreak > 0) {
-          streakLengths.push(winStreak);
-          maxWinStreak = Math.max(maxWinStreak, winStreak);
-        }
-
-        const avgStreakLength = streakLengths.length > 0 ? Math.round(streakLengths.reduce((a, b) => a + b, 0) / streakLengths.length * 100) / 100 : 0;
-        const clusteringStrength = Math.round((maxWinStreak / tradesForAnalysis.length) * 100);
-
-        return {
-          maxWinStreak: maxWinStreak,
-          avgStreakLength: avgStreakLength,
-          clusteringStrength: clusteringStrength,
-          assessment: clusteringStrength > 20 ? 'High - Pattern is repeatable' : clusteringStrength > 10 ? 'Medium - Some pattern consistency' : 'Low - Trades are independent',
-          totalWinStreaks: streakLengths.length
-        };
-      };
-
-      // PHASE 1: Kelly Criterion Position Sizing
-      const kellyCriterionAnalysis = () => {
-        const winCount = tradesForAnalysis.filter(t => t.pnl > 0).length;
-        const lossCount = tradesForAnalysis.filter(t => t.pnl <= 0).length;
-        const winRate = winCount / tradesForAnalysis.length;
-        
-        const avgWin = tradesForAnalysis.filter(t => t.pnl > 0).reduce((s, t) => s + t.pnl, 0) / (winCount || 1);
-        const avgLoss = Math.abs(tradesForAnalysis.filter(t => t.pnl <= 0).reduce((s, t) => s + t.pnl, 0) / (lossCount || 1));
-        
-        const winLossRatio = avgWin / (avgLoss || 1);
-        
-        // Kelly Formula: f = (bp - q) / b
-        // b = win/loss ratio, p = win rate, q = loss rate
-        const p = winRate;
-        const q = 1 - winRate;
-        const b = winLossRatio;
-        
-        let kellyPercentage = ((b * p - q) / b) * 100;
-        kellyPercentage = Math.max(0, Math.min(kellyPercentage, 25)); // Cap at 25%
-
-        const conservative = Math.round(kellyPercentage * 0.25 * 100) / 100;
-        const moderate = Math.round(kellyPercentage * 0.5 * 100) / 100;
-        const aggressive = Math.round(kellyPercentage * 100) / 100;
-
-        return {
-          kelly: Math.round(kellyPercentage * 100) / 100,
-          conservative: conservative,
-          moderate: moderate,
-          aggressive: aggressive,
-          recommendation: kellyPercentage > 5 ? `Use ${moderate}% per trade (moderate)` : `Risk < ${conservative}% per trade (conservative - low edge)`
-        };
-      };
-
-      const decayAnalysis = performanceDecayAnalysis();
-      const attribution = entryExitAttribution();
-      const clustering = tradeClusteringAnalysis();
-      const kellyAnalysis = kellyCriterionAnalysis();
-
-      const calculateBestEntryTimes = () => {
-        const entrySlots = {};
-        tradesForAnalysis.forEach(trade => {
-          const slot = getTimeSlot(trade.entryTime, timeSlotInterval);
-          if (slot) {
-            if (!entrySlots[slot]) entrySlots[slot] = [];
-            entrySlots[slot].push(trade);
-          }
-        });
-        
-        return Object.keys(entrySlots).map(slot => {
-          const trades = entrySlots[slot];
-          const totalPnL = trades.reduce((sum, t) => sum + t.pnl, 0);
-          const winRate = (trades.filter(t => t.pnl > 0).length / trades.length) * 100;
-          return { timeSlot: slot, totalPnL, winRate, tradeCount: trades.length };
-        }).filter(s => s.tradeCount >= 5).sort((a, b) => b.totalPnL - a.totalPnL);
-      };
-
-      const calculateBestExitTimes = () => {
-        const exitSlots = {};
-        tradesForAnalysis.forEach(trade => {
-          const slot = getTimeSlot(trade.exitTime, timeSlotInterval);
-          if (slot) {
-            if (!exitSlots[slot]) exitSlots[slot] = [];
-            exitSlots[slot].push(trade);
-          }
-        });
-        
-        return Object.keys(exitSlots).map(slot => {
-          const trades = exitSlots[slot];
-          const totalPnL = trades.reduce((sum, t) => sum + t.pnl, 0);
-          const winRate = (trades.filter(t => t.pnl > 0).length / trades.length) * 100;
-          return { timeSlot: slot, totalPnL, winRate, tradeCount: trades.length };
-        }).filter(s => s.tradeCount >= 5).sort((a, b) => b.totalPnL - a.totalPnL);
-      };
-
-      const dayOfWeek = dayOfWeekAnalysis();
-      const hourHeatmap = hourHeatmapAnalysis();
-      const bestWorstTrades = getBestWorstTrades();
-      const riskReward = riskRewardAnalysis();
-      const equityCurve = equityCurveAnalysis();
-      const direction = directionAnalysis();
-      const durationProfit = durationProfitabilityAnalysis();
-      const sharpeAndSortino = calculateSharpeAndSortino();
-      const tradeDuration = calculateTradeDuration();
-      const drawdownMetrics = calculateDrawdownMetrics();
-      const bestEntryTimes = calculateBestEntryTimes();
-      const bestExitTimes = calculateBestExitTimes();
-
-      const totalPnL = tradesForAnalysis.reduce((sum, trade) => sum + trade.pnl, 0);
-      const overallWinRate = tradesForAnalysis.length > 0 ? 
-        (tradesForAnalysis.filter(trade => trade.pnl > 0).length / tradesForAnalysis.length) * 100 : 0;
-
-      setResults({
-        fileInfo: { ...fileInfo, dateRange: dateRange },
-        totalTrades: tradesForAnalysis.length,
-        overallPerformance: {
-          totalPnL: Math.round(totalPnL),
-          winRate: Math.round(overallWinRate * 100) / 100
-        },
-        byProfitability: sortedByPnL,
-        byWinRate: sortedByWinRate,
-        byProfitFactor: sortedByProfitFactor,
-        dayOfWeek: dayOfWeek,
-        hourHeatmap: hourHeatmap,
-        bestWorstTrades: bestWorstTrades,
-        riskReward: riskReward,
-        equityCurve: equityCurve,
-        direction: direction,
-        durationProfit: durationProfit,
-        sharpeAndSortino: sharpeAndSortino,
-        comprehensiveInsights: {
-          bestEntryTimes: bestEntryTimes.slice(0, 3),
-          bestExitTimes: bestExitTimes.slice(0, 3),
-          tradeDuration: tradeDuration,
-          drawdownMetrics: drawdownMetrics
-        }
-      });
-
+      const analysisResults = performAnalysis(completeTrades, fileInfo, dateRange);
+      setResults(analysisResults);
       addToast('Analysis complete!', 'success');
-      setIsAnalyzing(false);
     } catch (err) {
       addToast(err.message, 'error');
+    } finally {
       setIsAnalyzing(false);
     }
-  }, [intradayOnly, timeSlotInterval, analysisType]);
+  }, [performAnalysis]);
 
   // Calculate metrics for a single strategy (used in comparison)
   const calculateStrategyMetrics = (trades) => {
@@ -1019,676 +450,39 @@ const ModernTradingAnalyzer = () => {
     }
   }, [strategies, selectedStrategies, intradayOnly]);
 
-  // Advanced Segmentation Analysis (Phase 4)
-  const performSegmentationAnalysis = useCallback(() => {
-    if (!cachedData || !cachedData.completeTrades) return;
-
-    const trades = getFilteredTrades(cachedData.completeTrades);
-    let segments = {};
-
-    switch (segmentationType) {
-      case 'day':
-        // Segment by day of week
-        trades.forEach(trade => {
-          const date = new Date(trade.entryTime);
-          const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][date.getDay()];
-          if (!segments[dayName]) segments[dayName] = [];
-          segments[dayName].push(trade);
-        });
-        break;
-
-      case 'hour':
-        // Segment by hour of day
-        trades.forEach(trade => {
-          const date = new Date(trade.entryTime);
-          const hour = `${date.getHours().toString().padStart(2, '0')}:00`;
-          if (!segments[hour]) segments[hour] = [];
-          segments[hour].push(trade);
-        });
-        break;
-
-      case 'symbol':
-        // Segment by trading symbol (if available in filename)
-        const symbol = results?.fileInfo?.symbol || 'Unknown';
-        segments[symbol] = trades;
-        break;
-
-      case 'direction':
-        // Segment by trade direction (profit/loss)
-        trades.forEach(trade => {
-          const direction = trade.pnl > 0 ? 'Winning Trades' : trade.pnl < 0 ? 'Losing Trades' : 'Breakeven';
-          if (!segments[direction]) segments[direction] = [];
-          segments[direction].push(trade);
-        });
-        break;
-
-      case 'duration':
-        // Segment by trade duration
-        trades.forEach(trade => {
-          const start = new Date(trade.entryTime).getTime();
-          const end = new Date(trade.exitTime).getTime();
-          const durationMinutes = (end - start) / (1000 * 60);
-
-          let durationBucket;
-          if (durationMinutes < 5) durationBucket = '< 5 min';
-          else if (durationMinutes < 15) durationBucket = '5-15 min';
-          else if (durationMinutes < 60) durationBucket = '15-60 min';
-          else if (durationMinutes < 240) durationBucket = '1-4 hours';
-          else durationBucket = '> 4 hours';
-
-          if (!segments[durationBucket]) segments[durationBucket] = [];
-          segments[durationBucket].push(trade);
-        });
-        break;
-
-      default:
-        break;
-    }
-
-    // Calculate metrics for each segment
-    const segmentAnalysis = Object.entries(segments).map(([segmentName, segmentTrades]) => {
-      const totalPnL = segmentTrades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0);
-      const winCount = segmentTrades.filter(t => (parseFloat(t.pnl) || 0) > 0).length;
-      const lossCount = segmentTrades.filter(t => (parseFloat(t.pnl) || 0) < 0).length;
-      const winRate = segmentTrades.length > 0 ? (winCount / segmentTrades.length) * 100 : 0;
-
-      const grossProfit = segmentTrades.filter(t => (parseFloat(t.pnl) || 0) > 0).reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0);
-      const grossLoss = Math.abs(segmentTrades.filter(t => (parseFloat(t.pnl) || 0) < 0).reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0));
-      const profitFactor = grossLoss > 0 ? grossProfit / grossLoss : (grossProfit > 0 ? 1 : 0);
-
-      const avgPnL = segmentTrades.length > 0 ? totalPnL / segmentTrades.length : 0;
-
-      return {
-        name: segmentName,
-        totalTrades: segmentTrades.length,
-        winTrades: winCount,
-        lossTrades: lossCount,
-        totalPnL: Math.round(totalPnL),
-        avgPnL: Math.round(avgPnL * 100) / 100,
-        winRate: Math.round(winRate * 100) / 100,
-        profitFactor: Math.round(profitFactor * 100) / 100,
-        trades: segmentTrades
-      };
-    });
-
-    // Sort by profit factor
-    segmentAnalysis.sort((a, b) => b.profitFactor - a.profitFactor);
-
-    setSegmentationResults({
-      segmentationType,
-      segments: segmentAnalysis,
-      totalSegments: segmentAnalysis.length
-    });
-
-    addToast(`Segmentation analysis complete: ${segmentAnalysis.length} segments analyzed`, 'success');
-  }, [cachedData, results, segmentationType, getFilteredTrades]);
-
-  // Enhanced Heatmap Analysis (Phase 3)
-  const performEnhancedHeatmapAnalysis = useCallback(() => {
-    if (!cachedData || !cachedData.completeTrades) return;
-
-    const trades = getFilteredTrades(cachedData.completeTrades);
-    const matrix = {};
-
-    trades.forEach(trade => {
-      try {
-        const date = new Date(trade.entryTime);
-        const day = date.getDay();
-        const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][day];
-
-        let timeSlot;
-        if (heatmapResolution === 1) {
-          timeSlot = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
-        } else {
-          const minutes = Math.floor(date.getMinutes() / heatmapResolution) * heatmapResolution;
-          timeSlot = `${date.getHours().toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-        }
-
-        const key = `${dayName}-${timeSlot}`;
-        if (!matrix[key]) matrix[key] = [];
-        matrix[key].push(trade);
-      } catch (e) {
-        // Skip invalid trades
-      }
-    });
-
-    const heatmapData = Object.entries(matrix).map(([key, segmentTrades]) => {
-      const totalPnL = segmentTrades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0);
-      const winCount = segmentTrades.filter(t => (parseFloat(t.pnl) || 0) > 0).length;
-      const winRate = (winCount / segmentTrades.length) * 100;
-
-      return {
-        period: key,
-        pnl: Math.round(totalPnL),
-        winrate: Math.round(winRate * 100) / 100,
-        trades: segmentTrades.length,
-        intensity: Math.abs(totalPnL)
-      };
-    });
-
-    setHeatmapResults({
-      data: heatmapData,
-      resolution: heatmapResolution,
-      metric: heatmapMetric
-    });
-
-    addToast(`Heatmap generated: ${heatmapData.length} time slots analyzed`, 'success');
-  }, [cachedData, heatmapResolution, heatmapMetric, getFilteredTrades]);
-
-  // Exit & Stop Optimization (Phase 6)
-  const performExitOptimization = useCallback(() => {
-    if (!cachedData || !cachedData.completeTrades) return;
-
-    setIsOptimizing(true);
-
-    try {
-      const trades = getFilteredTrades(cachedData.completeTrades);
-      const results = [];
-
-      // If in auto mode, grid search through combinations
-      const stopLossValues = optimizationMode === 'auto'
-        ? [0.5, 1, 1.5, 2, 2.5, 3, 4, 5]
-        : [stopLossPercent];
-
-      const takeProfitValues = optimizationMode === 'auto'
-        ? [1, 2, 3, 4, 5, 6, 8, 10]
-        : [takeProfitPercent];
-
-      stopLossValues.forEach(sl => {
-        takeProfitValues.forEach(tp => {
-          let totalPnL = 0;
-          let wins = 0;
-          let losses = 0;
-          let winPnL = 0;
-          let lossPnL = 0;
-
-          trades.forEach(trade => {
-            const pnl = parseFloat(trade.pnl) || 0;
-
-            // Simulate with stop loss and take profit
-            if (pnl > tp) {
-              // Would hit take profit
-              totalPnL += tp;
-              wins++;
-              winPnL += tp;
-            } else if (pnl < -sl) {
-              // Would hit stop loss
-              totalPnL -= sl;
-              losses++;
-              lossPnL -= sl;
-            } else {
-              // Trade closes at actual P&L
-              totalPnL += pnl;
-              if (pnl > 0) {
-                wins++;
-                winPnL += pnl;
-              } else {
-                losses++;
-                lossPnL += pnl;
-              }
-            }
-          });
-
-          const totalTrades = wins + losses;
-          const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
-          const profitFactor = lossPnL !== 0 ? winPnL / Math.abs(lossPnL) : (winPnL > 0 ? 1 : 0);
-
-          results.push({
-            stopLoss: sl,
-            takeProfit: tp,
-            totalPnL: Math.round(totalPnL),
-            totalTrades,
-            wins,
-            losses,
-            winRate: Math.round(winRate * 100) / 100,
-            profitFactor: Math.round(profitFactor * 100) / 100
-          });
-        });
-      });
-
-      // Sort by profit factor for best results
-      results.sort((a, b) => b.profitFactor - a.profitFactor);
-
-      setOptimizationResults({
-        configurations: results,
-        bestConfig: results[0],
-        currentConfig: { stopLoss: stopLossPercent, takeProfit: takeProfitPercent },
-        isGridSearch: optimizationMode === 'auto'
-      });
-
-      addToast(`Optimization complete: ${results.length} configurations evaluated`, 'success');
-    } catch (err) {
-      addToast('Error optimizing: ' + err.message, 'error');
-    } finally {
-      setIsOptimizing(false);
-    }
-  }, [cachedData, stopLossPercent, takeProfitPercent, optimizationMode, getFilteredTrades]);
-
-  // Trade Clustering & Correlation Analysis (Phase 2)
-  const performTradeClusteringAnalysis = useCallback(() => {
-    if (!cachedData || !cachedData.completeTrades) return;
-
-    const trades = getFilteredTrades(cachedData.completeTrades);
-    const clusters = {};
-    let clusterMetrics = {};
-
-    if (clusteringType === 'outcome') {
-      // Cluster by winning vs losing trades
-      const winners = trades.filter(t => (parseFloat(t.pnl) || 0) > 0);
-      const losers = trades.filter(t => (parseFloat(t.pnl) || 0) <= 0);
-
-      clusters['Winners'] = winners;
-      clusters['Losers'] = losers;
-
-      // Calculate metrics for each cluster
-      ['Winners', 'Losers'].forEach(clusterName => {
-        const clusterTrades = clusters[clusterName];
-        const totalPnL = clusterTrades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0);
-        const avgPnL = totalPnL / clusterTrades.length;
-        const avgDuration = clusterTrades.length > 0 ?
-          clusterTrades.reduce((sum, t) => {
-            try {
-              const entry = new Date(t.entryTime);
-              const exit = new Date(t.exitTime);
-              return sum + (exit - entry);
-            } catch {
-              return sum;
-            }
-          }, 0) / clusterTrades.length / 60000 : 0; // convert to minutes
-
-        clusterMetrics[clusterName] = {
-          count: clusterTrades.length,
-          totalPnL: Math.round(totalPnL),
-          avgPnL: Math.round(avgPnL),
-          percentage: ((clusterTrades.length / trades.length) * 100).toFixed(1),
-          avgDuration: avgDuration.toFixed(2),
-          pnlRange: {
-            min: Math.min(...clusterTrades.map(t => parseFloat(t.pnl) || 0)),
-            max: Math.max(...clusterTrades.map(t => parseFloat(t.pnl) || 0))
-          }
-        };
-      });
-    } else if (clusteringType === 'entryPattern') {
-      // Cluster by entry time patterns (morning, afternoon, evening)
-      const morning = trades.filter(t => {
-        try {
-          const hour = new Date(t.entryTime).getHours();
-          return hour >= 6 && hour < 12;
-        } catch { return false; }
-      });
-      const afternoon = trades.filter(t => {
-        try {
-          const hour = new Date(t.entryTime).getHours();
-          return hour >= 12 && hour < 18;
-        } catch { return false; }
-      });
-      const evening = trades.filter(t => {
-        try {
-          const hour = new Date(t.entryTime).getHours();
-          return hour >= 18 || hour < 6;
-        } catch { return false; }
-      });
-
-      clusters['Morning (6AM-12PM)'] = morning;
-      clusters['Afternoon (12PM-6PM)'] = afternoon;
-      clusters['Evening (6PM-6AM)'] = evening;
-
-      Object.keys(clusters).forEach(clusterName => {
-        const clusterTrades = clusters[clusterName];
-        if (clusterTrades.length === 0) return;
-
-        const totalPnL = clusterTrades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0);
-        const wins = clusterTrades.filter(t => (parseFloat(t.pnl) || 0) > 0).length;
-
-        clusterMetrics[clusterName] = {
-          count: clusterTrades.length,
-          totalPnL: Math.round(totalPnL),
-          avgPnL: Math.round(totalPnL / clusterTrades.length),
-          winRate: ((wins / clusterTrades.length) * 100).toFixed(1),
-          percentage: ((clusterTrades.length / trades.length) * 100).toFixed(1),
-          bestTrade: Math.max(...clusterTrades.map(t => parseFloat(t.pnl) || 0)),
-          worstTrade: Math.min(...clusterTrades.map(t => parseFloat(t.pnl) || 0))
-        };
-      });
-    } else if (clusteringType === 'hourOfDay') {
-      // Cluster by hour of day (0-23)
-      const hourClusters = {};
-      for (let hour = 0; hour < 24; hour++) {
-        hourClusters[hour] = [];
-      }
-
-      trades.forEach(t => {
-        try {
-          const hour = new Date(t.entryTime).getHours();
-          hourClusters[hour].push(t);
-        } catch { }
-      });
-
-      Object.keys(hourClusters).forEach(hour => {
-        const clusterTrades = hourClusters[hour];
-        if (clusterTrades.length === 0) return;
-
-        const hourLabel = `${hour.toString().padStart(2, '0')}:00`;
-        clusters[hourLabel] = clusterTrades;
-
-        const totalPnL = clusterTrades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0);
-        const wins = clusterTrades.filter(t => (parseFloat(t.pnl) || 0) > 0).length;
-
-        clusterMetrics[hourLabel] = {
-          count: clusterTrades.length,
-          totalPnL: Math.round(totalPnL),
-          avgPnL: Math.round(totalPnL / clusterTrades.length),
-          winRate: ((wins / clusterTrades.length) * 100).toFixed(1),
-          percentage: ((clusterTrades.length / trades.length) * 100).toFixed(1),
-          bestTrade: Math.max(...clusterTrades.map(t => parseFloat(t.pnl) || 0)),
-          worstTrade: Math.min(...clusterTrades.map(t => parseFloat(t.pnl) || 0))
-        };
-      });
-    } else if (clusteringType === 'dayOfWeek') {
-      // Cluster by day of week
-      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      const dayClusters = {};
-      dayNames.forEach(day => { dayClusters[day] = []; });
-
-      trades.forEach(t => {
-        try {
-          const dayIndex = new Date(t.entryTime).getDay();
-          dayClusters[dayNames[dayIndex]].push(t);
-        } catch { }
-      });
-
-      Object.keys(dayClusters).forEach(dayName => {
-        const clusterTrades = dayClusters[dayName];
-        if (clusterTrades.length === 0) return;
-
-        clusters[dayName] = clusterTrades;
-
-        const totalPnL = clusterTrades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0);
-        const wins = clusterTrades.filter(t => (parseFloat(t.pnl) || 0) > 0).length;
-
-        clusterMetrics[dayName] = {
-          count: clusterTrades.length,
-          totalPnL: Math.round(totalPnL),
-          avgPnL: Math.round(totalPnL / clusterTrades.length),
-          winRate: ((wins / clusterTrades.length) * 100).toFixed(1),
-          percentage: ((clusterTrades.length / trades.length) * 100).toFixed(1),
-          bestTrade: Math.max(...clusterTrades.map(t => parseFloat(t.pnl) || 0)),
-          worstTrade: Math.min(...clusterTrades.map(t => parseFloat(t.pnl) || 0))
-        };
-      });
-    } else if (clusteringType === 'month') {
-      // Cluster by month
-      const monthClusters = {};
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-      trades.forEach(t => {
-        try {
-          const date = new Date(t.entryTime);
-          const monthKey = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
-          if (!monthClusters[monthKey]) {
-            monthClusters[monthKey] = [];
-          }
-          monthClusters[monthKey].push(t);
-        } catch { }
-      });
-
-      Object.keys(monthClusters).forEach(monthKey => {
-        const clusterTrades = monthClusters[monthKey];
-        if (clusterTrades.length === 0) return;
-
-        clusters[monthKey] = clusterTrades;
-
-        const totalPnL = clusterTrades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0);
-        const wins = clusterTrades.filter(t => (parseFloat(t.pnl) || 0) > 0).length;
-
-        clusterMetrics[monthKey] = {
-          count: clusterTrades.length,
-          totalPnL: Math.round(totalPnL),
-          avgPnL: Math.round(totalPnL / clusterTrades.length),
-          winRate: ((wins / clusterTrades.length) * 100).toFixed(1),
-          percentage: ((clusterTrades.length / trades.length) * 100).toFixed(1),
-          bestTrade: Math.max(...clusterTrades.map(t => parseFloat(t.pnl) || 0)),
-          worstTrade: Math.min(...clusterTrades.map(t => parseFloat(t.pnl) || 0))
-        };
-      });
-    }
-
-    // Build correlation data for visualization
-    const correlationData = Object.entries(clusterMetrics).map(([name, metrics]) => ({
-      name,
-      ...metrics
-    }));
-
-    setClusteringResults({
-      clusters,
-      clusterMetrics,
-      correlationData,
-      type: clusteringType,
-      totalTrades: trades.length
-    });
-
-    addToast(`Trade clustering complete: ${Object.keys(clusters).length} clusters identified`, 'success');
-  }, [cachedData, clusteringType, getFilteredTrades]);
-
-  // Weakness Detection Analysis (Phase 5)
-  const performWeaknessDetection = useCallback(() => {
-    if (!cachedData || !cachedData.completeTrades) return;
-
-    const trades = getFilteredTrades(cachedData.completeTrades);
-    const weaknesses = [];
-    const averageMetrics = {};
-
-    // Calculate average P&L
-    const totalPnL = trades.reduce((sum, t) => sum + (parseFloat(t.pnl) || 0), 0);
-    const avgPnL = totalPnL / trades.length;
-    const avgWinRate = (trades.filter(t => (parseFloat(t.pnl) || 0) > 0).length / trades.length) * 100;
-
-    // Analyze time-based weaknesses
-    const hourlyMetrics = {};
-    trades.forEach(trade => {
-      try {
-        const hour = new Date(trade.entryTime).getHours();
-        if (!hourlyMetrics[hour]) {
-          hourlyMetrics[hour] = { trades: [], pnl: 0, wins: 0 };
-        }
-        hourlyMetrics[hour].trades.push(trade);
-        hourlyMetrics[hour].pnl += parseFloat(trade.pnl) || 0;
-        if ((parseFloat(trade.pnl) || 0) > 0) hourlyMetrics[hour].wins++;
-      } catch { }
-    });
-
-    Object.entries(hourlyMetrics).forEach(([hour, data]) => {
-      const hourAvgPnL = data.pnl / data.trades.length;
-      const hourWinRate = (data.wins / data.trades.length) * 100;
-      const pnlDeviation = ((avgPnL - hourAvgPnL) / Math.abs(avgPnL || 1)) * 100;
-
-      if (pnlDeviation > weaknessThreshold) {
-        weaknesses.push({
-          type: 'Time Weakness',
-          period: `${hour}:00 - ${(hour + 1) % 24}:00`,
-          description: `Hour ${hour} underperforms by ${pnlDeviation.toFixed(1)}%`,
-          avgPnL: Math.round(hourAvgPnL),
-          winRate: hourWinRate.toFixed(1),
-          expectedPnL: Math.round(avgPnL),
-          lossAmount: Math.round(avgPnL - hourAvgPnL),
-          tradeCount: data.trades.length,
-          severity: pnlDeviation > 70 ? 'Critical' : pnlDeviation > 50 ? 'High' : 'Medium'
-        });
-      }
-    });
-
-    // Analyze direction-based weaknesses (long vs short if available)
-    const directions = {};
-    trades.forEach(trade => {
-      const direction = trade.position?.toLowerCase() === 'short' ? 'Short' : 'Long';
-      if (!directions[direction]) {
-        directions[direction] = { trades: [], pnl: 0, wins: 0 };
-      }
-      directions[direction].trades.push(trade);
-      directions[direction].pnl += parseFloat(trade.pnl) || 0;
-      if ((parseFloat(trade.pnl) || 0) > 0) directions[direction].wins++;
-    });
-
-    Object.entries(directions).forEach(([dir, data]) => {
-      if (data.trades.length < trades.length * 0.1) return; // Skip if less than 10% of trades
-
-      const dirAvgPnL = data.pnl / data.trades.length;
-      const dirWinRate = (data.wins / data.trades.length) * 100;
-      const pnlDeviation = ((avgPnL - dirAvgPnL) / Math.abs(avgPnL || 1)) * 100;
-
-      if (pnlDeviation > weaknessThreshold) {
-        weaknesses.push({
-          type: 'Direction Weakness',
-          period: `${dir} Positions`,
-          description: `${dir} trades underperform by ${pnlDeviation.toFixed(1)}%`,
-          avgPnL: Math.round(dirAvgPnL),
-          winRate: dirWinRate.toFixed(1),
-          expectedPnL: Math.round(avgPnL),
-          lossAmount: Math.round(avgPnL - dirAvgPnL),
-          tradeCount: data.trades.length,
-          severity: pnlDeviation > 70 ? 'Critical' : pnlDeviation > 50 ? 'High' : 'Medium'
-        });
-      }
-    });
-
-    // Sort by severity
-    const severityOrder = { Critical: 0, High: 1, Medium: 2 };
-    weaknesses.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
-
-    setWeaknessResults({
-      weaknesses,
-      totalWeaknesses: weaknesses.length,
-      averageMetrics: { avgPnL: Math.round(avgPnL), avgWinRate: avgWinRate.toFixed(1) },
-      threshold: weaknessThreshold
-    });
-
-    addToast(`Weakness detection complete: ${weaknesses.length} weaknesses identified`, 'success');
-  }, [cachedData, weaknessThreshold, getFilteredTrades]);
-
-  // Balanced Optimization Analysis (Phase 7)
-  const performBalancedOptimization = useCallback(() => {
-    if (!cachedData || !cachedData.completeTrades) return;
-
-    setIsBalancedOptimizing(true);
-
-    try {
-      const trades = getFilteredTrades(cachedData.completeTrades);
-      const configurations = [];
-
-      // Generate optimization scenarios with different parameter combinations
-      const stopLossRange = [0.5, 1, 1.5, 2, 2.5, 3];
-      const takeProfitRange = [1, 2, 3, 4, 5, 6, 8, 10];
-      const tradeFilterRange = [30, 40, 50, 60]; // minimum win rate filter %
-
-      stopLossRange.forEach(sl => {
-        takeProfitRange.forEach(tp => {
-          tradeFilterRange.forEach(minWinRate => {
-            let totalPnL = 0;
-            let wins = 0;
-            let losses = 0;
-            let maxDD = 0;
-            let runningBalance = 0;
-            let peak = 0;
-
-            // Apply configuration to historical trades
-            trades.forEach(trade => {
-              const pnl = parseFloat(trade.pnl) || 0;
-              let adjustedPnL = pnl;
-
-              // Apply stop-loss and take-profit limits
-              if (pnl > tp) {
-                adjustedPnL = tp;
-              } else if (pnl < -sl) {
-                adjustedPnL = -sl;
-              }
-
-              totalPnL += adjustedPnL;
-              runningBalance += adjustedPnL;
-
-              if (adjustedPnL > 0) wins++;
-              else losses++;
-
-              // Track maximum drawdown
-              peak = Math.max(peak, runningBalance);
-              const dd = peak - runningBalance;
-              maxDD = Math.max(maxDD, dd);
-            });
-
-            const totalTrades = wins + losses;
-            const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
-            const profitFactor = losses > 0 ? wins / losses : (wins > 0 ? Infinity : 0);
-            const sharpeRatio = totalTrades > 0 ? (totalPnL / totalTrades) / (Math.abs(maxDD) || 1) : 0;
-            const returnOnDD = maxDD > 0 ? totalPnL / maxDD : (totalPnL > 0 ? Infinity : 0);
-
-            configurations.push({
-              stopLoss: sl,
-              takeProfit: tp,
-              minWinRate,
-              totalPnL: Math.round(totalPnL),
-              winRate: Math.round(winRate * 100) / 100,
-              profitFactor: Math.round(profitFactor * 100) / 100,
-              maxDrawdown: Math.round(maxDD),
-              sharpeRatio: Math.round(sharpeRatio * 100) / 100,
-              returnOnDD: Math.round(returnOnDD * 100) / 100,
-              score: 0 // Will be calculated based on objective
-            });
-          });
-        });
-      });
-
-      // Calculate scores based on optimization objective
-      configurations.forEach(config => {
-        if (optimizationObjective === 'sharpe') {
-          // Maximize Sharpe Ratio
-          config.score = config.sharpeRatio;
-        } else if (optimizationObjective === 'profitfactor') {
-          // Maximize Profit Factor while controlling drawdown
-          config.score = config.profitFactor * (1 - (config.maxDrawdown / 100));
-        } else if (optimizationObjective === 'riskadjusted') {
-          // Maximize risk-adjusted returns (Return on DD)
-          config.score = config.returnOnDD;
-        }
-      });
-
-      // Filter configurations that meet minimum criteria
-      const qualifyingConfigs = configurations.filter(
-        config => config.maxDrawdown <= maxDrawdownTarget && config.winRate >= minWinRateTarget
-      );
-
-      // Sort by score
-      qualifyingConfigs.sort((a, b) => b.score - a.score);
-
-      // Get top 10 configurations
-      const topConfigs = qualifyingConfigs.slice(0, 10);
-
-      // Calculate diversification score (how different are top configs)
-      const diversificationMetrics = {
-        slRange: Math.max(...topConfigs.map(c => c.stopLoss)) - Math.min(...topConfigs.map(c => c.stopLoss)),
-        tpRange: Math.max(...topConfigs.map(c => c.takeProfit)) - Math.min(...topConfigs.map(c => c.takeProfit)),
-        avgScore: topConfigs.reduce((sum, c) => sum + c.score, 0) / topConfigs.length,
-        qualifyingCount: qualifyingConfigs.length
-      };
-
-      setBalancedOptimizationResults({
-        configurations: topConfigs,
-        bestConfig: topConfigs[0],
-        allConfigurations: configurations,
-        qualifyingConfigurations: qualifyingConfigs,
-        diversificationMetrics,
-        objective: optimizationObjective,
-        constraints: {
-          maxDrawdown: maxDrawdownTarget,
-          minWinRate: minWinRateTarget
-        }
-      });
-
-      addToast(`Optimization complete: ${topConfigs.length} optimal configurations found`, 'success');
-    } catch (err) {
-      addToast('Error during optimization: ' + err.message, 'error');
-    } finally {
-      setIsBalancedOptimizing(false);
-    }
-  }, [cachedData, optimizationObjective, maxDrawdownTarget, minWinRateTarget, getFilteredTrades]);
+  const { performSegmentationAnalysis } = useSegmentationAnalysis(
+    cachedData,
+    results,
+    segmentationType,
+    getFilteredTrades
+  );
+
+  const { performEnhancedHeatmapAnalysis } = useHeatmapAnalysis(
+    cachedData,
+    heatmapResolution,
+    heatmapMetric,
+    getFilteredTrades
+  );
+
+  const { performExitOptimization } = useExitOptimization(
+    cachedData,
+    stopLossPercent,
+    takeProfitPercent,
+    optimizationMode,
+    getFilteredTrades
+  );
+
+  const { performTradeClusteringAnalysis } = useTradeClusteringAnalysis(
+    cachedData,
+    clusteringType,
+    getFilteredTrades
+  );
+
+  const { performWeaknessDetection } = useWeaknessDetection(
+    cachedData,
+    weaknessThreshold,
+    getFilteredTrades
+  );
 
   const handleFileUpload = useCallback(async (event) => {
     const uploadedFile = event.target.files[0];
@@ -1852,26 +646,9 @@ const ModernTradingAnalyzer = () => {
 
   React.useEffect(() => {
     if (cachedData) {
-      performAnalysis(cachedData.completeTrades, cachedData.fileInfo, cachedData.dateRange);
-      // Auto-run balanced optimization with default settings
-      setTimeout(() => {
-        setOptimizationObjective('sharpe');
-        setMaxDrawdownTarget(25);
-        setMinWinRateTarget(45);
-      }, 500);
+      handleAnalysis(cachedData.completeTrades, cachedData.fileInfo, cachedData.dateRange);
     }
-  }, [cachedData, performAnalysis, timeSlotInterval, analysisType, intradayOnly]);
-
-  React.useEffect(() => {
-    // Auto-run balanced optimization when defaults are set
-    if (cachedData && !balancedOptimizationResults) {
-      const runOptimization = async () => {
-        await new Promise(resolve => setTimeout(resolve, 300));
-        performBalancedOptimization();
-      };
-      runOptimization();
-    }
-  }, [cachedData]);
+  }, [cachedData, handleAnalysis, timeSlotInterval, analysisType, intradayOnly]);
 
   // FIX: Auto-trigger Weakness Detection when metric changes
   React.useEffect(() => {
@@ -1883,23 +660,35 @@ const ModernTradingAnalyzer = () => {
   // FIX: Auto-trigger Trade Clustering when type changes
   React.useEffect(() => {
     if (cachedData && activeTab === 'insights' && insightsView === 'clustering') {
-      performTradeClusteringAnalysis();
+      const results = performTradeClusteringAnalysis();
+      if (results) {
+        setClusteringResults(results);
+        addToast(`Trade clustering complete: ${Object.keys(results.clusters).length} clusters identified`, 'success');
+      }
     }
-  }, [clusteringType]);
+  }, [clusteringType, cachedData, activeTab, insightsView, performTradeClusteringAnalysis]);
 
   // FIX: Auto-trigger Segmentation when type changes
   React.useEffect(() => {
     if (cachedData && activeTab === 'timepatterns' && timePatternsView === 'segmentation') {
-      performSegmentationAnalysis();
+      const results = performSegmentationAnalysis();
+      if (results) {
+        setSegmentationResults(results);
+        addToast(`Segmentation analysis complete: ${results.segments.length} segments analyzed`, 'success');
+      }
     }
-  }, [segmentationType]);
+  }, [segmentationType, cachedData, activeTab, timePatternsView, performSegmentationAnalysis]);
 
   // FIX: Auto-trigger Heatmap when resolution/metric changes
   React.useEffect(() => {
     if (cachedData && activeTab === 'timepatterns' && timePatternsView === 'heatmap') {
-      performEnhancedHeatmapAnalysis();
+      const results = performEnhancedHeatmapAnalysis();
+      if (results) {
+        setHeatmapResults(results);
+        addToast(`Heatmap generated: ${results.data.length} time slots analyzed`, 'success');
+      }
     }
-  }, [heatmapResolution, heatmapMetric]);
+  }, [heatmapResolution, heatmapMetric, cachedData, activeTab, timePatternsView, performEnhancedHeatmapAnalysis]);
 
   const exportToCSV = () => {
     if (!results) return;
@@ -2039,37 +828,6 @@ TIME SLOT ANALYSIS
     return Math.ceil(dataLength / pageSize);
   };
 
-  const Toast = ({ toast }) => {
-    const bgColor = {
-      success: 'bg-green-500',
-      error: 'bg-red-500',
-      info: 'bg-blue-500'
-    }[toast.type] || 'bg-blue-500';
-
-    return (
-      <div className={`${bgColor} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-slide-in`}>
-        {toast.type === 'success' && <CheckCircle size={18} />}
-        {toast.type === 'error' && <AlertCircle size={18} />}
-        <span className="text-sm">{toast.message}</span>
-      </div>
-    );
-  };
-
-  // Memoized KPICard component for performance (rendered 5+ times in Executive Summary)
-  const KPICard = memo(({ title, value, subtitle, icon: Icon, color }) => (
-    <div className={`${darkMode ? 'bg-gray-800' : 'bg-white'} rounded-lg p-4 border ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-      <div className="flex items-start justify-between">
-        <div>
-          <p className={`text-sm font-medium ${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-1`}>{title}</p>
-          <p className={`text-2xl font-bold ${color}`}>{value}</p>
-          {subtitle && <p className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-500'} mt-1`}>{subtitle}</p>}
-        </div>
-        <div className={`p-2 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-          <Icon size={20} className={color} />
-        </div>
-      </div>
-    </div>
-  ));
 
   const bgColor = darkMode ? 'bg-gray-900' : 'bg-gray-50';
   const cardBg = darkMode ? 'bg-gray-800' : 'bg-white';
@@ -2104,7 +862,7 @@ TIME SLOT ANALYSIS
       betterDirection,
       directionDifference
     };
-  }, [results]); // Simplified: re-compute when any part of results changes
+  }, [results, timeSlotInterval]); // Simplified: re-compute when any part of results changes
 
   // CONSOLIDATED NAVIGATION TABS (Reduced from 12 to 7)
   const navTabs = [
@@ -2416,8 +1174,7 @@ TIME SLOT ANALYSIS
                 <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
                   <div className="space-y-2">
                     {[
-                      { value: 'exit', label: '🎯 Exit & Stop' },
-                      { value: 'balanced', label: '⚖️ Balanced' }
+                      { value: 'exit', label: '🎯 Exit & Stop' }
                     ].map(view => (
                       <button
                         key={view.value}
@@ -2490,7 +1247,20 @@ TIME SLOT ANALYSIS
                 )}
 
                 <button
-                  onClick={performExitOptimization}
+                  onClick={async () => {
+                    setIsOptimizing(true);
+                    try {
+                      const results = await performExitOptimization();
+                      if (results) {
+                        setOptimizationResults(results);
+                        addToast(`Optimization complete: ${results.configurations.length} configurations evaluated`, 'success');
+                      }
+                    } catch (err) {
+                      addToast('Error optimizing: ' + err.message, 'error');
+                    } finally {
+                      setIsOptimizing(false);
+                    }
+                  }}
                   disabled={isOptimizing}
                   className="w-full px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors text-sm font-medium disabled:opacity-50"
                 >
@@ -2590,7 +1360,13 @@ TIME SLOT ANALYSIS
                 </div>
 
                 <button
-                  onClick={performWeaknessDetection}
+                  onClick={() => {
+                    const results = performWeaknessDetection();
+                    if (results) {
+                      setWeaknessResults(results);
+                      addToast(`Weakness detection complete: ${results.weaknesses.length} weaknesses identified`, 'success');
+                    }
+                  }}
                   className="w-full px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium"
                 >
                   Detect Weaknesses
@@ -2598,62 +1374,6 @@ TIME SLOT ANALYSIS
               </>
             )}
 
-            {/* Balanced Optimization Configuration - Only when balanced view active */}
-            {activeTab === 'optimization' && optimizationView === 'balanced' && results && (
-              <>
-                <div className={`text-xs font-semibold ${darkMode ? 'text-gray-300' : 'text-gray-600'} px-4 py-2 uppercase mt-4`}>Balanced Settings</div>
-                <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                  <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Objective</p>
-                  <select
-                    value={optimizationObjective}
-                    onChange={(e) => setOptimizationObjective(e.target.value)}
-                    className={`w-full px-2 py-1 rounded text-sm ${darkMode ? 'bg-gray-600 text-white' : 'bg-white text-gray-900'}`}
-                  >
-                    <option value="sharpe">Sharpe Ratio</option>
-                    <option value="profitFactor">Profit Factor</option>
-                    <option value="riskAdjusted">Risk-Adjusted Returns</option>
-                  </select>
-                </div>
-
-                <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                  <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>
-                    Max Drawdown: {maxDrawdownTarget}%
-                  </p>
-                  <input
-                    type="range"
-                    min="5"
-                    max="50"
-                    step="5"
-                    value={maxDrawdownTarget}
-                    onChange={(e) => setMaxDrawdownTarget(parseInt(e.target.value))}
-                    className="w-full"
-                  />
-                </div>
-
-                <div className={`px-4 py-3 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                  <p className={`text-xs font-medium mb-2 ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>
-                    Min Win Rate: {minWinRateTarget}%
-                  </p>
-                  <input
-                    type="range"
-                    min="20"
-                    max="80"
-                    step="5"
-                    value={minWinRateTarget}
-                    onChange={(e) => setMinWinRateTarget(parseInt(e.target.value))}
-                    className="w-full"
-                  />
-                </div>
-
-                <button
-                  onClick={performBalancedOptimization}
-                  disabled={isBalancedOptimizing}
-                  className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium disabled:bg-gray-500 disabled:cursor-not-allowed"
-                >
-                  {isBalancedOptimizing ? 'Optimizing...' : '🚀 Start Optimization'}
-                </button>
-              </>
-            )}
 
             <hr className={`my-4 ${borderColor}`} />
 
@@ -2947,7 +1667,7 @@ TIME SLOT ANALYSIS
                     </div>
 
                     {/* Advanced Insights Available */}
-                    {(segmentationResults || heatmapResults || clusteringResults || weaknessResults || balancedOptimizationResults) && (
+                    {(segmentationResults || heatmapResults || clusteringResults || weaknessResults) && (
                       <div className={`mt-6 p-4 rounded-lg border-2 ${darkMode ? 'border-yellow-700 bg-yellow-900/20' : 'border-yellow-300 bg-yellow-50'}`}>
                         <h4 className={`font-bold ${darkMode ? 'text-yellow-400' : 'text-yellow-700'} mb-3 flex items-center gap-2`}>
                           <Zap size={16} />
@@ -2976,12 +1696,6 @@ TIME SLOT ANALYSIS
                             <div className={`p-2 rounded ${darkMode ? 'bg-red-800' : 'bg-red-100'} text-center`}>
                               <p className="font-semibold">⚠️ Weaknesses</p>
                               <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>{weaknessResults.weaknesses?.length || 0} detected</p>
-                            </div>
-                          )}
-                          {balancedOptimizationResults && (
-                            <div className={`p-2 rounded ${darkMode ? 'bg-orange-800' : 'bg-orange-100'} text-center`}>
-                              <p className="font-semibold">⚖️ Optimization</p>
-                              <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>{balancedOptimizationResults.configurations?.length || 0} configs</p>
                             </div>
                           )}
                         </div>
@@ -4455,8 +3169,12 @@ TIME SLOT ANALYSIS
               {/* Exit & Stop Optimization Tab (Phase 6) */}
               {activeTab === 'optimization' && optimizationView === 'exit' && results && (
                 <div className="space-y-6">
-                  {/* Results */}
-                  {optimizationResults ? (
+                  {isOptimizing ? (
+                    <div className="text-center py-12">
+                      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-3"></div>
+                      <p className={textColor}>Running optimizations...</p>
+                    </div>
+                  ) : optimizationResults ? (
                     <div className="space-y-6">
                       {/* Best Configuration */}
                       {optimizationResults.isGridSearch && (
@@ -4494,27 +3212,93 @@ TIME SLOT ANALYSIS
                               <th className={`text-right py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Total P&L</th>
                               <th className={`text-right py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Win Rate %</th>
                               <th className={`text-right py-2 px-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'} font-semibold`}>Profit Factor</th>
+                              <th className={`text-left py-2 px-2 font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>Details</th>
                             </tr>
                           </thead>
                           <tbody>
                             {optimizationResults.configurations.slice(0, optimizationMode === 'auto' ? 10 : 1).map((config, idx) => (
-                              <tr
-                                key={idx}
-                                className={`border-b ${borderColor} ${idx === 0 && optimizationMode === 'auto' ? 'bg-blue-50 dark:bg-blue-900 dark:bg-opacity-30' : ''}`}
-                              >
-                                <td className={`py-3 px-2 ${idx === 0 && optimizationMode === 'auto' ? 'font-bold text-blue-600' : textColor}`}>
-                                  {config.stopLoss}%
-                                </td>
-                                <td className={`py-3 px-2 ${idx === 0 && optimizationMode === 'auto' ? 'font-bold text-blue-600' : textColor}`}>
-                                  {config.takeProfit}%
-                                </td>
-                                <td className={`py-3 px-2 text-right ${textColor}`}>{config.wins}/{config.losses}</td>
-                                <td className={`py-3 px-2 text-right ${config.totalPnL >= 0 ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}`}>
-                                  ₹{config.totalPnL.toLocaleString()}
-                                </td>
-                                <td className={`py-3 px-2 text-right ${textColor}`}>{config.winRate.toFixed(2)}%</td>
-                                <td className={`py-3 px-2 text-right ${textColor}`}>{config.profitFactor.toFixed(2)}</td>
-                              </tr>
+                              <React.Fragment key={idx}>
+                                <tr
+                                  className={`border-b ${borderColor} ${idx === 0 && optimizationMode === 'auto' ? 'bg-blue-50 dark:bg-blue-900 dark:bg-opacity-30' : ''}`}
+                                >
+                                  <td className={`py-3 px-2 ${idx === 0 && optimizationMode === 'auto' ? 'font-bold text-blue-600' : textColor}`}>
+                                    {config.stopLoss}%
+                                  </td>
+                                  <td className={`py-3 px-2 ${idx === 0 && optimizationMode === 'auto' ? 'font-bold text-blue-600' : textColor}`}>
+                                    {config.takeProfit}%
+                                  </td>
+                                  <td className={`py-3 px-2 text-right ${textColor}`}>{config.wins}/{config.losses}</td>
+                                  <td className={`py-3 px-2 text-right ${config.totalPnL >= 0 ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}`}>
+                                    ₹{config.totalPnL.toLocaleString()}
+                                  </td>
+                                  <td className={`py-3 px-2 text-right ${textColor}`}>{config.winRate.toFixed(2)}%</td>
+                                  <td className={`py-3 px-2 text-right ${textColor}`}>{config.profitFactor.toFixed(2)}</td>
+                                  <td className="py-2 px-2">
+                                    <button
+                                      onClick={() => toggleExpanded(idx)}
+                                      className="text-blue-600 hover:text-blue-800 text-xs"
+                                    >
+                                      {expandedRows.has(idx) ? 'Hide' : 'Show'}
+                                    </button>
+                                  </td>
+                                </tr>
+                                {expandedRows.has(idx) && (
+                                  <tr>
+                                    <td colSpan={8} className={`py-4 ${darkMode ? 'bg-gray-700' : 'bg-gray-50'} border-b ${borderColor}`}>
+                                      <div className="px-4">
+                                        <div className="flex justify-between items-center mb-2">
+                                          <h5 className="font-semibold text-sm">Time Slot Performance</h5>
+                                          <select
+                                            className={`px-2 py-1 rounded text-xs ${darkMode ? 'bg-gray-600 text-white' : 'bg-white text-gray-900'}`}
+                                            onChange={(e) => {
+                                              const newExpanded = new Set(expandedRows);
+                                              newExpanded.delete(idx); // Force re-render
+                                              setExpandedRows(newExpanded);
+                                              setTimeout(() => {
+                                                const newExpanded2 = new Set(expandedRows);
+                                                newExpanded2.add(idx);
+                                                setExpandedRows(newExpanded2);
+                                                
+                                                const updatedConfig = { ...config, selectedInterval: e.target.value };
+                                                const newResults = [...optimizationResults.configurations];
+                                                newResults[idx] = updatedConfig;
+                                                setOptimizationResults({ ...optimizationResults, configurations: newResults });
+
+                                              }, 0);
+                                            }}
+                                            value={config.selectedInterval || '60'}
+                                          >
+                                            <option value="5">5 min</option>
+                                            <option value="15">15 min</option>
+                                            <option value="30">30 min</option>
+                                            <option value="60">1 hour</option>
+                                          </select>
+                                        </div>
+                                        <table className="w-full text-xs">
+                                          <thead>
+                                            <tr className={`border-b ${borderColor}`}>
+                                              <th className="text-left py-1">Time Slot</th>
+                                              <th className="text-right py-1">P&L</th>
+                                              <th className="text-right py-1">Trades</th>
+                                              <th className="text-right py-1">Win Rate</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {(config.timeSlots[config.selectedInterval || '60'] || []).map((slot, slotIdx) => (
+                                              <tr key={slotIdx} className={`border-b ${borderColor}`}>
+                                                <td className="py-1 font-mono">{slot.timeSlot}</td>
+                                                <td className={`text-right ${slot.pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>₹{slot.pnl.toLocaleString()}</td>
+                                                <td className="text-right">{slot.trades}</td>
+                                                <td className="text-right">{slot.winRate.toFixed(2)}%</td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
                             ))}
                           </tbody>
                         </table>
@@ -4702,185 +3486,6 @@ TIME SLOT ANALYSIS
                 </div>
               )}
 
-              {/* Balanced Optimization Tab (Phase 7) */}
-              {activeTab === 'optimization' && optimizationView === 'balanced' && results && (
-                <div className="space-y-6">
-                  {/* Auto Optimization Status */}
-                  <div style={{ padding: '16px', borderRadius: '8px', backgroundColor: '#10b981', border: '2px solid #059669' }}>
-                    <p style={{ color: '#ffffff', fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>
-                      ✅ AUTOMATED OPTIMIZATION RUNNING
-                    </p>
-                    <p style={{ color: '#ffffff', fontSize: '12px', opacity: 0.9 }}>
-                      {isBalancedOptimizing ? 'Analyzing 192 configurations...' : 'Optimization complete! Results below.'}
-                    </p>
-                  </div>
-
-                  {/* Quick Presets */}
-                  <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
-                    <h3 className={`text-lg font-bold ${textColor} mb-4`}>⚡ Quick Optimization Presets</h3>
-                    <div className="grid grid-cols-3 gap-4">
-                      <button
-                        onClick={() => {
-                          setOptimizationObjective('sharpe');
-                          setMaxDrawdownTarget(20);
-                          setMinWinRateTarget(50);
-                          setTimeout(() => performBalancedOptimization(), 100);
-                        }}
-                        className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                      >
-                        🎯 Conservative (Low Risk)
-                      </button>
-                      <button
-                        onClick={() => {
-                          setOptimizationObjective('profitfactor');
-                          setMaxDrawdownTarget(30);
-                          setMinWinRateTarget(45);
-                          setTimeout(() => performBalancedOptimization(), 100);
-                        }}
-                        className="px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
-                      >
-                        ⚖️ Balanced
-                      </button>
-                      <button
-                        onClick={() => {
-                          setOptimizationObjective('riskadjusted');
-                          setMaxDrawdownTarget(40);
-                          setMinWinRateTarget(40);
-                          setTimeout(() => performBalancedOptimization(), 100);
-                        }}
-                        className="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
-                      >
-                        🚀 Aggressive (High Return)
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Optimization Results */}
-                  {balancedOptimizationResults && balancedOptimizationResults.bestConfig && (
-                    <div className="space-y-6">
-                      {/* Best Configuration */}
-                      <div style={{ padding: '20px', borderRadius: '12px', backgroundColor: '#6d28d9', border: '2px solid #5b21b6' }}>
-                        <div style={{ color: '#ffffff', textAlign: 'center' }}>
-                          <p style={{ fontSize: '12px', fontWeight: 'bold', opacity: 0.9, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>⭐ BEST BALANCED CONFIGURATION</p>
-                          <p style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '4px' }}>SL: {balancedOptimizationResults.bestConfig.stopLoss}% | TP: {balancedOptimizationResults.bestConfig.takeProfit}% | Min WR: {balancedOptimizationResults.bestConfig.minWinRate}%</p>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginTop: '12px', fontSize: '12px' }}>
-                            <div>
-                              <p style={{ opacity: 0.8 }}>Total P&L</p>
-                              <p style={{ fontSize: '14px', fontWeight: 'bold' }}>₹{balancedOptimizationResults.bestConfig.totalPnL.toLocaleString()}</p>
-                            </div>
-                            <div>
-                              <p style={{ opacity: 0.8 }}>Sharpe Ratio</p>
-                              <p style={{ fontSize: '14px', fontWeight: 'bold' }}>{balancedOptimizationResults.bestConfig.sharpeRatio}</p>
-                            </div>
-                            <div>
-                              <p style={{ opacity: 0.8 }}>Profit Factor</p>
-                              <p style={{ fontSize: '14px', fontWeight: 'bold' }}>{balancedOptimizationResults.bestConfig.profitFactor}</p>
-                            </div>
-                            <div>
-                              <p style={{ opacity: 0.8 }}>Max Drawdown</p>
-                              <p style={{ fontSize: '14px', fontWeight: 'bold' }}>₹{balancedOptimizationResults.bestConfig.maxDrawdown.toLocaleString()}</p>
-                            </div>
-                            <div>
-                              <p style={{ opacity: 0.8 }}>Win Rate</p>
-                              <p style={{ fontSize: '14px', fontWeight: 'bold' }}>{balancedOptimizationResults.bestConfig.winRate}%</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Summary Stats */}
-                      <div className={`${cardBg} rounded-lg p-6 border ${borderColor}`}>
-                        <h3 className={`text-lg font-bold ${textColor} mb-4`}>📊 Optimization Summary</h3>
-                        <div className="grid grid-cols-5 gap-4">
-                          <div style={{ padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#374151' : '#f0f9ff' }}>
-                            <p style={{ color: darkMode ? '#9ca3af' : '#666', fontSize: '11px', marginBottom: '4px' }}>Qualifying Configs</p>
-                            <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#3b82f6' }}>{balancedOptimizationResults.diversificationMetrics.qualifyingCount}</p>
-                          </div>
-                          <div style={{ padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#374151' : '#f0f9ff' }}>
-                            <p style={{ color: darkMode ? '#9ca3af' : '#666', fontSize: '11px', marginBottom: '4px' }}>Avg Score</p>
-                            <p style={{ fontSize: '18px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{balancedOptimizationResults.diversificationMetrics.avgScore.toFixed(2)}</p>
-                          </div>
-                          <div style={{ padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#374151' : '#f0f9ff' }}>
-                            <p style={{ color: darkMode ? '#9ca3af' : '#666', fontSize: '11px', marginBottom: '4px' }}>SL Range</p>
-                            <p style={{ fontSize: '18px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{balancedOptimizationResults.diversificationMetrics.slRange.toFixed(1)}%</p>
-                          </div>
-                          <div style={{ padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#374151' : '#f0f9ff' }}>
-                            <p style={{ color: darkMode ? '#9ca3af' : '#666', fontSize: '11px', marginBottom: '4px' }}>TP Range</p>
-                            <p style={{ fontSize: '18px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{balancedOptimizationResults.diversificationMetrics.tpRange.toFixed(1)}%</p>
-                          </div>
-                          <div style={{ padding: '12px', borderRadius: '6px', backgroundColor: darkMode ? '#374151' : '#f0f9ff' }}>
-                            <p style={{ color: darkMode ? '#9ca3af' : '#666', fontSize: '11px', marginBottom: '4px' }}>Objective</p>
-                            <p style={{ fontSize: '18px', fontWeight: 'bold', color: darkMode ? '#e5e7eb' : '#1f2937', textTransform: 'capitalize' }}>{balancedOptimizationResults.objective}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Top 10 Configurations Table */}
-                      <div className={`${cardBg} rounded-lg p-6 border ${borderColor} overflow-x-auto`}>
-                        <h3 className={`text-lg font-bold ${textColor} mb-4`}>Top 10 Configurations</h3>
-                        <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse' }}>
-                          <thead>
-                            <tr style={{ borderBottom: `2px solid ${darkMode ? '#374151' : '#e5e7eb'}` }}>
-                              <th style={{ padding: '12px', textAlign: 'left', color: darkMode ? '#9ca3af' : '#666', fontWeight: 'bold' }}>Rank</th>
-                              <th style={{ padding: '12px', textAlign: 'left', color: darkMode ? '#9ca3af' : '#666', fontWeight: 'bold' }}>SL%</th>
-                              <th style={{ padding: '12px', textAlign: 'left', color: darkMode ? '#9ca3af' : '#666', fontWeight: 'bold' }}>TP%</th>
-                              <th style={{ padding: '12px', textAlign: 'left', color: darkMode ? '#9ca3af' : '#666', fontWeight: 'bold' }}>Min WR%</th>
-                              <th style={{ padding: '12px', textAlign: 'left', color: darkMode ? '#9ca3af' : '#666', fontWeight: 'bold' }}>Total P&L</th>
-                              <th style={{ padding: '12px', textAlign: 'left', color: darkMode ? '#9ca3af' : '#666', fontWeight: 'bold' }}>Sharpe</th>
-                              <th style={{ padding: '12px', textAlign: 'left', color: darkMode ? '#9ca3af' : '#666', fontWeight: 'bold' }}>Profit Factor</th>
-                              <th style={{ padding: '12px', textAlign: 'left', color: darkMode ? '#9ca3af' : '#666', fontWeight: 'bold' }}>Max DD</th>
-                              <th style={{ padding: '12px', textAlign: 'left', color: darkMode ? '#9ca3af' : '#666', fontWeight: 'bold' }}>Win Rate</th>
-                              <th style={{ padding: '12px', textAlign: 'left', color: darkMode ? '#9ca3af' : '#666', fontWeight: 'bold' }}>Score</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {balancedOptimizationResults.configurations.map((config, idx) => (
-                              <tr
-                                key={idx}
-                                style={{
-                                  backgroundColor: idx === 0 ? (darkMode ? 'rgba(109, 40, 217, 0.2)' : 'rgba(109, 40, 217, 0.1)') : 'transparent',
-                                  borderBottom: `1px solid ${darkMode ? '#374151' : '#e5e7eb'}`,
-                                  padding: '12px'
-                                }}
-                              >
-                                <td style={{ padding: '12px', color: idx === 0 ? '#8b5cf6' : (darkMode ? '#e5e7eb' : '#1f2937'), fontWeight: idx === 0 ? 'bold' : 'normal' }}>{idx + 1}</td>
-                                <td style={{ padding: '12px', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{config.stopLoss}</td>
-                                <td style={{ padding: '12px', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{config.takeProfit}</td>
-                                <td style={{ padding: '12px', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{config.minWinRate}</td>
-                                <td style={{ padding: '12px', color: config.totalPnL >= 0 ? '#22c55e' : '#ef4444', fontWeight: 'bold' }}>₹{config.totalPnL.toLocaleString()}</td>
-                                <td style={{ padding: '12px', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{config.sharpeRatio}</td>
-                                <td style={{ padding: '12px', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{config.profitFactor}</td>
-                                <td style={{ padding: '12px', color: darkMode ? '#e5e7eb' : '#1f2937' }}>₹{config.maxDrawdown.toLocaleString()}</td>
-                                <td style={{ padding: '12px', color: darkMode ? '#e5e7eb' : '#1f2937' }}>{config.winRate}%</td>
-                                <td style={{ padding: '12px', color: '#8b5cf6', fontWeight: 'bold' }}>{config.score.toFixed(2)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-
-                  {balancedOptimizationResults && !balancedOptimizationResults.bestConfig && (
-                    <div className={`${cardBg} rounded-lg p-8 text-center border ${borderColor}`}>
-                      <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'} mb-4`}>
-                        No qualifying configurations found with current constraints.
-                      </p>
-                      <p className={`${darkMode ? 'text-gray-500' : 'text-gray-500'} text-sm`}>
-                        Try reducing the maximum drawdown limit or minimum win rate requirement.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {!results && activeTab === 'optimization' && optimizationView === 'balanced' && (
-                <div className={`${cardBg} rounded-2xl p-12 text-center border ${borderColor}`}>
-                  <p className={`${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Upload and analyze a strategy to use balanced optimization features
-                  </p>
-                </div>
-              )}
             </div>
           )}
         </main>
@@ -5122,4 +3727,4 @@ TIME SLOT ANALYSIS
   );
 };
 
-export default ModernTradingAnalyzer;
+export default TradingViewStrategyAnalyzer;
