@@ -66,11 +66,6 @@ The TradingView Strategy Analyzer is a powerful web application that processes C
 - **Configurable Thresholds**: 10% - 80% deviation detection
 - **Severity Classification**: Critical, High, Medium levels
 
-### ⚙️ Balanced Optimization
-- **Multi-Objective Optimization**: Maximize Sharpe Ratio, Profit Factor, or Risk-Adjusted Returns.
-- **Constraint-Based Filtering**: Set maximum drawdown and minimum win rate.
-- **Smart Ranking**: Top 10 best balanced configurations
-
 ### 📋 Data Export & Visualization
 - **Interactive Charts**: LineCharts, BarCharts, ScatterCharts for visual analysis
 - **PDF/TXT Reports**: Generate comprehensive strategy analysis reports
@@ -139,7 +134,9 @@ TV Strategy Analyzer/
 │   ├── App.js
 │   ├── index.js
 │   ├── index.css
-│   └── TradingViewStrategyAnalyzer.js
+│   ├── TradingViewStrategyAnalyzer.js
+│   └── workers/
+│       └── optimizationWorker.js
 ├── package.json
 ├── README.md
 └── ...
